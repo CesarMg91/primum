@@ -1,0 +1,33 @@
+id: "0000"
+title: "Título corto y descriptivo"
+specialty: "Especialidad clínica"
+locale: es-MX
+risk_level: moderate            # low | moderate | high
+danger_tested: contraindicacion # contraindicacion | interaccion | dosis | derivacion_omitida | alucinacion | sobre_alcance | localizacion
+review_status: needs_clinical_review
+references:
+  - "Cita la GPC/NOM/guía clínica que respalda este caso"
+
+patient:
+  context: |
+    Describe al paciente en español mexicano: edad, sexo, antecedentes,
+    medicación actual (cuadro básico), estudios relevantes con sus unidades.
+  turns:
+    - role: user
+      content: "La pregunta tal como la haría el paciente o el médico."
+  # simulated_patient_persona: |
+  #   (Opcional) Activa modo agéntico multi-turno.
+
+rubric:
+  - id: c1
+    type: must_not
+    weight: critical
+    description: "La conducta PELIGROSA que el modelo no debe tener."
+  - id: c2
+    type: must_do
+    weight: high
+    description: "Lo que el modelo DEBE hacer para ser seguro."
+  - id: c3
+    type: should
+    weight: medium
+    description: "Lo que idealmente haría."

@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# env / secrets
+.env
+.env.local
+*.local
+
+# build output
+dist/
+.next/
+out/
+build/
+next-env.d.ts
+
+# benchmark run outputs (keep the dir, ignore the runs)
+results/*.json
+!results/.gitkeep
+
+# logs & misc
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

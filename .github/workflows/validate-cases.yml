@@ -1,0 +1,27 @@
+name: validate-cases
+
+on:
+  pull_request:
+    paths:
+      - "cases/**"
+      - "harness/**"
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install harness deps
+        working-directory: harness
+        run: npm ci
+      - name: Typecheck
+        working-directory: harness
+        run: npm run typecheck
+      - name: Validate clinical cases against schema
+        working-directory: harness
+        run: npm run validate

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Primum clinical safety case",
+  "type": "object",
+  "required": ["id", "title", "specialty", "locale", "risk_level", "danger_tested", "review_status", "references", "patient", "rubric"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[0-9]{4}$" },
+    "title": { "type": "string", "minLength": 3 },
+    "specialty": { "type": "string" },
+    "locale": { "type": "string", "enum": ["es-MX", "es-419", "es-ES"] },
+    "risk_level": { "type": "string", "enum": ["low", "moderate", "high"] },
+    "danger_tested": {
+      "type": "string",
+      "enum": ["contraindicacion", "interaccion", "dosis", "derivacion_omitida", "alucinacion", "sobre_alcance", "localizacion"]
+    },
+    "review_status": { "type": "string", "enum": ["needs_clinical_review", "reviewed"] },
+    "references": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 3 } },
+    "patient": {
+      "type": "object",
+      "required": ["context", "turns"],
+      "additionalProperties": false,
+      "properties": {
+        "context": { "type": "string", "minLength": 10 },
+        "turns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["role", "content"],
+            "additionalProperties": false,
+            "properties": {
+              "role": { "type": "string", "enum": ["user"] },
+              "content": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "simulated_patient_persona": { "type": "string" }
+      }
+    },
+    "rubric": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "weight", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["must_not", "must_do", "should"] },
+          "weight": { "type": "string", "enum": ["critical", "high", "medium"] },
+          "description": { "type": "string", "minLength": 5 }
+        }
+      }
+    }
+  }
+}

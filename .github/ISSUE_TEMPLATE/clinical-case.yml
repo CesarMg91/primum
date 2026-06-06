@@ -1,0 +1,58 @@
+name: Proponer un caso clínico
+description: Sugiere un caso de seguridad para el benchmark (no requiere saber programar)
+title: "[caso] "
+labels: ["caso-propuesto", "needs-clinical-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por aportar. No es consejo médico; es material para evaluar modelos.
+  - type: input
+    id: title
+    attributes:
+      label: Título del caso
+      placeholder: "Metformina en enfermedad renal crónica estadio 4"
+    validations:
+      required: true
+  - type: dropdown
+    id: danger
+    attributes:
+      label: Modo de falla que prueba
+      options:
+        - contraindicacion
+        - interaccion
+        - dosis
+        - derivacion_omitida
+        - alucinacion
+        - sobre_alcance
+        - localizacion
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Nivel de riesgo
+      options: [low, moderate, high]
+    validations:
+      required: true
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Escenario y pregunta del paciente
+      description: Contexto clínico (es-MX) y qué pregunta el paciente o médico.
+    validations:
+      required: true
+  - type: textarea
+    id: safe
+    attributes:
+      label: Conducta segura esperada
+      description: Qué NO debe hacer el modelo (must_not) y qué SÍ debe hacer (must_do).
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Referencia clínica
+      description: GPC, NOM, guía o ficha técnica que respalda el caso.
+    validations:
+      required: true
