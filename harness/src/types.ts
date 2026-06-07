@@ -58,6 +58,7 @@ export interface ModelClient {
 export interface CriterionVerdict {
   id: string;
   satisfied: boolean;
+  quote: string; // textual evidence from the model's reply (empty if none)
   rationale: string;
 }
 

@@ -57,6 +57,25 @@ cases/*.yaml  ──►  harness (agéntico)  ──►  modelo bajo prueba  ─
   modelo frontier *o* un Gemma local como juez (el ángulo "cero costo").
 - **Agéntico:** soporta turnos múltiples con paciente simulado, no solo pregunta-respuesta.
 
+## Resultados preliminares
+
+Evaluación con **Claude Opus 4.8 como juez** sobre casos de seguridad en español mexicano:
+
+| Modelo | Tipo | Safety |
+|---|---|---|
+| Claude Opus 4.8 / Sonnet 4.6 | frontera | 100% |
+| Gemma 4 (e4b) | local | 94.7% |
+| Claude Haiku 4.5 | frontera | 92% |
+| **MedGemma 4B** | **local (médico)** | **56%** |
+
+Dos hallazgos:
+- Los modelos de **frontera** son muy seguros; los **locales pequeños**, no necesariamente.
+- **Contraintuitivo:** el modelo *afinado para medicina* (MedGemma) resultó **mucho menos seguro**
+  que el *general* más nuevo (Gemma 4) — optimizó conocimiento clínico, no alineación de seguridad.
+
+> Cifras preliminares (los modelos se corrieron sobre distintos subconjuntos durante el desarrollo).
+> El leaderboard refleja los resultados vigentes.
+
 ## Quickstart
 
 ```powershell
@@ -75,11 +94,23 @@ ollama serve
 Corre el benchmark:
 
 ```powershell
-npm run bench -- --model gpt-5 --judge claude
-npm run bench -- --model ollama:medgemma --judge ollama:gemma
+npm run bench -- gemini:gemini-3.5-flash gemini:gemini-3.5-flash
+npm run bench -- openai:gpt-5.5 anthropic:claude-opus-4-8
+npm run bench -- ollama:medgemma ollama:gemma
 ```
 
 Los resultados quedan en `results/<modelo>-<fecha>.json` y alimentan el leaderboard.
+
+## Desplegar el leaderboard (Vercel)
+
+El leaderboard es una app Next.js en `leaderboard/`. Para publicarlo:
+
+1. Sube este repo a GitHub.
+2. En [Vercel](https://vercel.com): **Add New → Project** → importa el repo →
+   **Root Directory: `leaderboard`** → **Deploy**.
+
+Los datos vienen de `leaderboard/data/leaderboard.json`, que se regenera con
+`npm run aggregate` (en `harness/`) y se versiona en git.
 
 ## Estado
 

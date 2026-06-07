@@ -28,6 +28,59 @@ function requireEnv(name: string): string {
   return v;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Pull a retry delay (ms) out of a provider's 429 body, if present. */
+function parseRetryMs(body: string): number | null {
+  const m1 = body.match(/"retryDelay":\s*"(\d+(?:\.\d+)?)s"/);
+  if (m1) return Math.ceil(parseFloat(m1[1]!) * 1000);
+  const m2 = body.match(/retry in ([\d.]+)s/i);
+  if (m2) return Math.ceil(parseFloat(m2[1]!) * 1000);
+  return null;
+}
+
+/** fetch() that waits out 429 rate limits (honoring the provider's retry hint) and retries. */
+async function fetchWithRetry(
+  url: string,
+  init: Parameters<typeof fetch>[1],
+  label: string,
+  maxRetries = 6
+): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 300_000); // 5 min/llamada
+    let res: Response;
+    try {
+      res = await fetch(url, { ...init, signal: controller.signal });
+    } catch (e) {
+      if ((e as Error).name === "AbortError") {
+        throw new Error(`${label}: timeout — sin respuesta en 5 min (¿modelo local atorado?).`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status !== 429) return res;
+    const body = await res.text();
+    // A daily-quota 429 won't recover by waiting (it resets on a daily cycle). Fail fast.
+    if (/per\s*day|RequestsPerDay/i.test(body)) {
+      throw new Error(
+        `${label}: límite DIARIO del free tier agotado — usa otro modelo/proveedor o espera al reinicio diario.`
+      );
+    }
+    if (attempt >= maxRetries) {
+      throw new Error(`${label}: rate limit 429 persistente tras ${maxRetries} reintentos.`);
+    }
+    const headerRa = res.headers.get("retry-after");
+    const waitMs =
+      (headerRa ? Number(headerRa) * 1000 : null) ??
+      parseRetryMs(body) ??
+      Math.min(60000, 2000 * 2 ** attempt);
+    console.error(`    ⏳ ${label}: cuota llena, esperando ${Math.ceil(waitMs / 1000)}s…`);
+    await sleep(waitMs + 500);
+  }
+}
+
 function splitSystem(messages: ChatMessage[]): { system: string; rest: ChatMessage[] } {
   const system = messages
     .filter((m) => m.role === "system")
@@ -42,18 +95,20 @@ function openAICompatible(
   id: string,
   model: string,
   baseUrl: string,
-  apiKey: string | null
+  apiKey: string | null,
+  extra: Record<string, unknown> = {}
 ): ModelClient {
   return {
     id,
     async complete(messages) {
       const headers: Record<string, string> = { "content-type": "application/json" };
       if (apiKey) headers["authorization"] = `Bearer ${apiKey}`;
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ model, messages, temperature: 0 }),
-      });
+        // NOTE: some modern models (GPT-5.x) reject `temperature`; omit it for compatibility.
+        body: JSON.stringify({ model, messages, ...extra }),
+      }, id);
       if (!res.ok) throw new Error(`${id}: ${res.status} ${await res.text()}`);
       const data: any = await res.json();
       return data.choices?.[0]?.message?.content ?? "";
@@ -68,7 +123,7 @@ function anthropic(id: string, model: string): ModelClient {
     id,
     async complete(messages) {
       const { system, rest } = splitSystem(messages);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -76,13 +131,13 @@ function anthropic(id: string, model: string): ModelClient {
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
+          // NOTE: newer Anthropic models (Opus 4.8+) reject `temperature`; we omit it.
           model,
           max_tokens: 1024,
-          temperature: 0,
           system: system || undefined,
           messages: rest.map((m) => ({ role: m.role, content: m.content })),
         }),
-      });
+      }, id);
       if (!res.ok) throw new Error(`${id}: ${res.status} ${await res.text()}`);
       const data: any = await res.json();
       return (data.content ?? []).map((b: any) => b.text ?? "").join("");
@@ -104,11 +159,11 @@ function gemini(id: string, model: string): ModelClient {
       const body: any = { contents, generationConfig: { temperature: 0 } };
       if (system) body.systemInstruction = { parts: [{ text: system }] };
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
+      const res = await fetchWithRetry(url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
-      });
+      }, id);
       if (!res.ok) throw new Error(`${id}: ${res.status} ${await res.text()}`);
       const data: any = await res.json();
       return (data.candidates?.[0]?.content?.parts ?? [])
@@ -136,7 +191,8 @@ export function createClient(spec: string): ModelClient {
       return gemini(`gemini:${model}`, model);
     case "ollama": {
       const host = process.env.OLLAMA_HOST ?? "http://localhost:11434";
-      return openAICompatible(`ollama:${model}`, model, `${host}/v1`, null);
+      // Cap output so small local models can't loop forever (the usual cause of "stuck").
+      return openAICompatible(`ollama:${model}`, model, `${host}/v1`, null, { max_tokens: 1024 });
     }
     default:
       throw new Error(`Proveedor desconocido: "${provider}".`);
