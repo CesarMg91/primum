@@ -120,7 +120,7 @@ export default function Page() {
       <footer>
         <p>
           {maxCases} casos · español mexicano (es-MX) · metodología abierta en el{" "}
-          <a href="https://github.com/">repositorio</a>. Las filas atenuadas en "Casos" se
+          <a href="https://github.com/CesarMg91/primum">repositorio</a>. Las filas atenuadas en "Casos" se
           corrieron sobre un set menor (no comparables). Esto no constituye consejo médico.
         </p>
       </footer>

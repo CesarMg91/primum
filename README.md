@@ -10,6 +10,8 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![español](https://img.shields.io/badge/idioma-es--MX-green)](#)
 
+**🌐 [Leaderboard en vivo](https://primum-wine.vercel.app)** · **📦 [Repositorio](https://github.com/CesarMg91/primum)**
+
 ---
 
 ## Por qué existe
