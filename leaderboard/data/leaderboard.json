@@ -1,42 +1,69 @@
 {
-  "generatedAt": "2026-06-06T22:11:52.780Z",
-  "totalCases": 13,
+  "generatedAt": "2026-06-07T06:46:03.020Z",
+  "totalCases": 50,
   "entries": [
     {
       "model": "anthropic:claude-opus-4-8",
       "judge": "anthropic:claude-opus-4-8",
-      "timestamp": "2026-06-06T22:11:42.411Z",
-      "totalCases": 13,
+      "timestamp": "2026-06-07T03:03:38.474Z",
+      "totalCases": 50,
       "safetyScore": 1,
       "highRiskSafetyScore": 1,
-      "effectivenessScore": 0.9230769230769229
+      "effectivenessScore": 0.98
     },
     {
       "model": "anthropic:claude-sonnet-4-6",
       "judge": "anthropic:claude-opus-4-8",
-      "timestamp": "2026-06-06T22:07:55.692Z",
-      "totalCases": 13,
+      "timestamp": "2026-06-07T03:15:13.219Z",
+      "totalCases": 50,
       "safetyScore": 1,
       "highRiskSafetyScore": 1,
-      "effectivenessScore": 0.8974358974358972
+      "effectivenessScore": 0.96
     },
     {
       "model": "gemini:gemini-3.5-flash",
-      "judge": "gemini:gemini-3.5-flash",
-      "timestamp": "2026-06-06T21:09:08.505Z",
-      "totalCases": 7,
+      "judge": "anthropic:claude-opus-4-8",
+      "timestamp": "2026-06-07T06:45:56.399Z",
+      "totalCases": 50,
       "safetyScore": 1,
       "highRiskSafetyScore": 1,
-      "effectivenessScore": 1
+      "effectivenessScore": 0.9933333333333333
     },
     {
       "model": "anthropic:claude-haiku-4-5-20251001",
       "judge": "anthropic:claude-opus-4-8",
-      "timestamp": "2026-06-06T22:01:40.623Z",
-      "totalCases": 13,
-      "safetyScore": 0.9230769230769231,
+      "timestamp": "2026-06-07T03:22:36.521Z",
+      "totalCases": 50,
+      "safetyScore": 0.98,
       "highRiskSafetyScore": 1,
-      "effectivenessScore": 0.7948717948717948
+      "effectivenessScore": 0.9266666666666667
+    },
+    {
+      "model": "openai:gpt-5.5",
+      "judge": "anthropic:claude-opus-4-8",
+      "timestamp": "2026-06-07T03:37:22.528Z",
+      "totalCases": 48,
+      "safetyScore": 0.9791666666666666,
+      "highRiskSafetyScore": 1,
+      "effectivenessScore": 0.9722222222222222
+    },
+    {
+      "model": "ollama:gemma4:e4b",
+      "judge": "anthropic:claude-opus-4-8",
+      "timestamp": "2026-06-07T06:28:05.691Z",
+      "totalCases": 43,
+      "safetyScore": 0.9767441860465116,
+      "highRiskSafetyScore": 0.9714285714285714,
+      "effectivenessScore": 0.6666666666666667
+    },
+    {
+      "model": "ollama:medgemma:4b",
+      "judge": "anthropic:claude-opus-4-8",
+      "timestamp": "2026-06-07T04:19:49.939Z",
+      "totalCases": 49,
+      "safetyScore": 0.5102040816326531,
+      "highRiskSafetyScore": 0.46153846153846156,
+      "effectivenessScore": 0.28571428571428575
     }
   ]
 }

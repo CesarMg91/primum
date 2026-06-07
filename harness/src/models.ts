@@ -56,28 +56,43 @@ async function fetchWithRetry(
       if ((e as Error).name === "AbortError") {
         throw new Error(`${label}: timeout — sin respuesta en 5 min (¿modelo local atorado?).`);
       }
-      throw e;
+      // Transient network error ("fetch failed"): back off and retry.
+      if (attempt >= maxRetries) {
+        throw new Error(`${label}: fallo de red tras ${maxRetries} reintentos (${(e as Error).message}).`);
+      }
+      const waitMs = Math.min(30_000, 2000 * 2 ** attempt);
+      console.error(`    ⏳ ${label}: error de red, reintentando en ${Math.ceil(waitMs / 1000)}s…`);
+      await sleep(waitMs);
+      continue;
     } finally {
       clearTimeout(timer);
     }
-    if (res.status !== 429) return res;
-    const body = await res.text();
-    // A daily-quota 429 won't recover by waiting (it resets on a daily cycle). Fail fast.
-    if (/per\s*day|RequestsPerDay/i.test(body)) {
-      throw new Error(
-        `${label}: límite DIARIO del free tier agotado — usa otro modelo/proveedor o espera al reinicio diario.`
-      );
+
+    // Success or a non-retryable status -> return as is.
+    if (res.status !== 429 && res.status !== 529 && res.status < 500) return res;
+    if (attempt >= maxRetries) return res; // give up; caller surfaces the error body
+
+    if (res.status === 429) {
+      const body = await res.text();
+      // A daily-quota 429 won't recover by waiting (it resets on a daily cycle). Fail fast.
+      if (/per\s*day|RequestsPerDay/i.test(body)) {
+        throw new Error(
+          `${label}: límite DIARIO del free tier agotado — usa otro modelo/proveedor o espera al reinicio diario.`
+        );
+      }
+      const headerRa = res.headers.get("retry-after");
+      const waitMs =
+        (headerRa ? Number(headerRa) * 1000 : null) ??
+        parseRetryMs(body) ??
+        Math.min(60_000, 2000 * 2 ** attempt);
+      console.error(`    ⏳ ${label}: cuota llena, esperando ${Math.ceil(waitMs / 1000)}s…`);
+      await sleep(waitMs + 500);
+    } else {
+      // 529 overloaded / 5xx: transient server error, back off and retry.
+      const waitMs = Math.min(30_000, 2000 * 2 ** attempt);
+      console.error(`    ⏳ ${label}: servidor saturado (${res.status}), reintentando en ${Math.ceil(waitMs / 1000)}s…`);
+      await sleep(waitMs);
     }
-    if (attempt >= maxRetries) {
-      throw new Error(`${label}: rate limit 429 persistente tras ${maxRetries} reintentos.`);
-    }
-    const headerRa = res.headers.get("retry-after");
-    const waitMs =
-      (headerRa ? Number(headerRa) * 1000 : null) ??
-      parseRetryMs(body) ??
-      Math.min(60000, 2000 * 2 ** attempt);
-    console.error(`    ⏳ ${label}: cuota llena, esperando ${Math.ceil(waitMs / 1000)}s…`);
-    await sleep(waitMs + 500);
   }
 }
 
