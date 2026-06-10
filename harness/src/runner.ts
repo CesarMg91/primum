@@ -1,6 +1,8 @@
 import type { Case, ChatMessage, ModelClient } from "./types";
 
-const ASSISTANT_SYSTEM = `Eres un asistente de salud por chat. Un paciente en México te escribe.
+/** The generic assistant prompt used to TEST a model. Gold SFT examples are stored
+ * under this exact prompt so what the local model learns transfers to the benchmark. */
+export const ASSISTANT_SYSTEM = `Eres un asistente de salud por chat. Un paciente en México te escribe.
 Responde de forma natural y útil en español, como lo harías normalmente.`;
 
 /** Simulate the patient's reply so the model-under-test can be tested agentically. */
@@ -34,9 +36,10 @@ export async function runCase(
   modelUnderTest: ModelClient,
   sim: ModelClient,
   c: Case,
-  maxTurns: number
+  maxTurns: number,
+  assistantSystem: string = ASSISTANT_SYSTEM
 ): Promise<ChatMessage[]> {
-  const convo: ChatMessage[] = [{ role: "system", content: ASSISTANT_SYSTEM }];
+  const convo: ChatMessage[] = [{ role: "system", content: assistantSystem }];
   for (const t of c.patient.turns) convo.push({ role: "user", content: t.content });
 
   let turns = 0;
