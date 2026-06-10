@@ -1,6 +1,8 @@
 import "dotenv/config";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createClient } from "./models";
-import { loadCases } from "./loadCases";
+import { loadCases, CASES_DIR } from "./loadCases";
 import { runCase } from "./runner";
 import { judgePanel } from "./judge";
 import { scoreCase, summarize } from "./score";
@@ -13,6 +15,7 @@ interface Args {
   maxTurns: number;
   limit?: number;
   only?: string;
+  split?: "train" | "test" | "all";
 }
 
 function parseArgs(argv: string[]): Args {
@@ -22,7 +25,7 @@ function parseArgs(argv: string[]): Args {
   };
   // Collect positional args too: npm on Windows can strip `--model`/`--judge` flags,
   // so we also accept `bench -- <model> [judge]` positionally.
-  const flags = new Set(["--model", "--judge", "--max-turns", "--limit", "--only"]);
+  const flags = new Set(["--model", "--judge", "--max-turns", "--limit", "--only", "--split"]);
   const positionals: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
@@ -56,6 +59,7 @@ function parseArgs(argv: string[]): Args {
     maxTurns: Number(get("--max-turns") ?? 4),
     limit: get("--limit") ? Number(get("--limit")) : undefined,
     only: get("--only"),
+    split: get("--split") as Args["split"],
   };
 }
 
@@ -65,11 +69,22 @@ async function main() {
   const judgeClients = args.judges.map(createClient);
 
   let cases = loadCases();
+  if (args.split && args.split !== "all") {
+    const splitPath = resolve(CASES_DIR, "split.json");
+    if (!existsSync(splitPath)) {
+      console.error(`No existe ${splitPath}. Corre 'npm run split' primero.`);
+      process.exit(1);
+    }
+    const split = JSON.parse(readFileSync(splitPath, "utf8"));
+    const ids = new Set(split[args.split] as string[]);
+    cases = cases.filter((c) => ids.has(c.id));
+  }
   if (args.only) cases = cases.filter((c) => c.id === args.only);
   if (args.limit) cases = cases.slice(0, args.limit);
 
+  const splitLabel = args.split && args.split !== "all" ? ` [split ${args.split}]` : "";
   const judgeLabel = args.judges.length > 1 ? `panel: ${args.judges.join(", ")}` : args.judges[0];
-  console.log(`\nPrimum · evaluando ${args.model} (juez ${judgeLabel}) sobre ${cases.length} casos\n`);
+  console.log(`\nPrimum · evaluando ${args.model} (juez ${judgeLabel}) sobre ${cases.length} casos${splitLabel}\n`);
 
   const results: CaseResult[] = [];
   for (const c of cases) {
