@@ -21,6 +21,15 @@ results/adversary/*.json
 !results/.gitkeep
 !results/adversary/.gitkeep
 
+# fine-tuning artifacts (models are multi-GB; the script + runbook are tracked)
+training/outputs/
+training/*-lora/
+training/*-gguf/
+training/out/
+training/*.gguf
+training/Modelfile
+training/gold.jsonl
+
 # logs & misc
 *.log
 npm-debug.log*
