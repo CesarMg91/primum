@@ -6,7 +6,7 @@
 //                            [--candidates N] [--max-turns N]
 // Example: npm run adversary -- ollama:medgemma:4b anthropic:claude-sonnet-4-6 anthropic:claude-opus-4-8
 import "dotenv/config";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Ajv from "ajv";
 import { stringify } from "yaml";
@@ -233,8 +233,10 @@ async function main() {
   const generator = createClient(args.generator);
   const judges = args.judges.map(createClient);
 
-  const existing = loadCases();
-  const existingTitles = existing.map((c) => c.title);
+  // Exclude both the official corpus AND any pending candidates on disk, so a
+  // top-up run doesn't regenerate near-duplicates of breakers we already have.
+  const pending = existsSync(CANDIDATES_DIR) ? loadCases(CANDIDATES_DIR) : [];
+  const existingTitles = [...loadCases(), ...pending].map((c) => c.title);
   const { violationsByDanger, failedTitles } = mineTargetWeaknesses(args.target);
 
   console.log(`\nPrimum · adversario`);
