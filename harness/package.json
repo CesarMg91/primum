@@ -6,6 +6,7 @@
   "scripts": {
     "bench": "tsx src/index.ts",
     "adversary": "tsx src/adversary.ts",
+    "split": "tsx src/splitCorpus.ts",
     "aggregate": "tsx src/aggregate.ts",
     "validate": "tsx src/validate.ts",
     "typecheck": "tsc --noEmit"
