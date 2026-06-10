@@ -1,7 +1,7 @@
 import type { Case, ChatMessage, CriterionVerdict, ModelClient } from "./types";
 
 /** Extract the first JSON array/object found in a string (judges sometimes wrap it). */
-function extractJson(text: string): unknown {
+export function extractJson(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const candidate = fenced ? fenced[1]! : text;
   const start = candidate.search(/[[{]/);

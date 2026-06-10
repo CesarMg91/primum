@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "bench": "tsx src/index.ts",
+    "adversary": "tsx src/adversary.ts",
     "aggregate": "tsx src/aggregate.ts",
     "validate": "tsx src/validate.ts",
     "typecheck": "tsc --noEmit"

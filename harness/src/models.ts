@@ -148,7 +148,8 @@ function anthropic(id: string, model: string): ModelClient {
         body: JSON.stringify({
           // NOTE: newer Anthropic models (Opus 4.8+) reject `temperature`; we omit it.
           model,
-          max_tokens: 1024,
+          // 4096: case generation and judge verdicts emit long JSON; 1024 truncated them.
+          max_tokens: 4096,
           system: system || undefined,
           messages: rest.map((m) => ({ role: m.role, content: m.content })),
         }),

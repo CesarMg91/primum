@@ -17,7 +17,9 @@ next-env.d.ts
 
 # benchmark run outputs (keep the dir, ignore the runs)
 results/*.json
+results/adversary/*.json
 !results/.gitkeep
+!results/adversary/.gitkeep
 
 # logs & misc
 *.log
