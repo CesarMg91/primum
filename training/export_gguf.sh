@@ -14,6 +14,13 @@ LORA="${1:-primum-medgemma-lora}"
 OUT="${2:-primum-medgemma}"
 QUANT="${QUANT:-q8_0}"   # q8_0 = pure-python convert, ~4.3GB, high quality
 
+# The container disk (/) is small (~20GB) and fills with model downloads.
+# Put the HF cache on /workspace, which is a huge network volume (TBs free).
+export HF_HOME="${HF_HOME:-/workspace/hf}"
+mkdir -p "$HF_HOME"
+rm -rf "$HOME/.cache/huggingface" 2>/dev/null || true   # free the small container disk
+echo "[disco] HF_HOME=$HF_HOME (caché en el volumen grande)"
+
 test -d "$LORA" || { echo "No encuentro $LORA — ¿corrió el entrenamiento?"; exit 1; }
 
 # clean any partial merge from a previous failed attempt to free disk
