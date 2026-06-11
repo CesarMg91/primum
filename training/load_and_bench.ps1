@@ -19,9 +19,14 @@ $ErrorActionPreference = "Stop"
 $gguf = Join-Path $GgufDir $GgufFile
 if (-not (Test-Path $gguf)) { throw "No encuentro $gguf. Pasa -GgufDir (carpeta del .gguf) y -GgufFile si el nombre difiere." }
 
-# Modelfile pointing at the local gguf
+# Build the Modelfile by INHERITING the base medgemma:4b template + stop tokens
+# (gemma needs <end_of_turn> stops or it rambles), swapping only the FROM line.
+$base = (& ollama show --modelfile medgemma:4b) -split "`r?`n"
+$body = ($base | Where-Object { $_ -notmatch '^\s*FROM ' -and $_ -notmatch '^\s*#' }) -join "`n"
 $modelfile = Join-Path $GgufDir "Modelfile.local"
-Set-Content -Encoding ascii -Path $modelfile -Value "FROM ./$GgufFile`nPARAMETER temperature 0.6`nPARAMETER top_p 0.9`nPARAMETER num_ctx 4096`n"
+$content = "FROM ./$GgufFile`n$body`nPARAMETER num_ctx 4096`n"
+Set-Content -Encoding ascii -Path $modelfile -Value $content
+Write-Host "==> Modelfile (hereda template+stops de medgemma:4b)" -ForegroundColor DarkGray
 
 Write-Host "==> ollama create $ModelName" -ForegroundColor Cyan
 Push-Location $GgufDir
