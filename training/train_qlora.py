@@ -52,21 +52,34 @@ def parse_args():
     p.add_argument("--accum", type=int, default=4, help="grad accumulation steps")
     p.add_argument("--gguf-quant", default="q4_k_m")
     p.add_argument("--no-gguf", action="store_true", help="skip GGUF export")
+    p.add_argument("--split-file", default="../cases/split.json",
+                   help="restrict training to the train ids in this split (anti-leakage)")
     return p.parse_args()
 
 
-def load_examples(path):
-    """Read gold.jsonl -> list of {'messages': [...]} keeping system/user/assistant."""
-    rows = []
+def load_examples(path, split_file=None):
+    """Read gold.jsonl -> list of {'messages': [...]}. If split_file is given,
+    keep ONLY gold whose caseId is in the train split — so a re-shuffled split
+    never leaks held-out test cases into training."""
+    train_ids = None
+    if split_file and os.path.exists(split_file):
+        train_ids = set(json.load(open(split_file))["train"])
+        print(f"[primum] restricting to {len(train_ids)} train ids from {split_file}")
+    rows, skipped = [], 0
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             obj = json.loads(line)
+            if train_ids is not None and obj.get("caseId") not in train_ids:
+                skipped += 1
+                continue
             msgs = obj["messages"]
             if msgs and msgs[-1]["role"] == "assistant":
                 rows.append({"messages": msgs})
+    if skipped:
+        print(f"[primum] skipped {skipped} gold examples not in the train split")
     if not rows:
         raise SystemExit(f"No usable examples in {path}")
     return rows
@@ -127,8 +140,8 @@ def main():
         random_state=3407,
     )
 
-    rows = load_examples(args.data)
-    print(f"[primum] {len(rows)} gold examples")
+    rows = load_examples(args.data, args.split_file)
+    print(f"[primum] {len(rows)} gold examples (train split)")
 
     # Render each conversation with the model's chat template. Try system-as-is;
     # fall back to folding system into the first user turn if the template balks.

@@ -25,7 +25,9 @@ export interface CorpusSplit {
   byDanger: Record<string, { total: number; test: number; train: number }>;
 }
 
-const HOLDOUT_MOD = 5; // 1-in-5 -> ~20%
+// 1-in-N hold-out. Default 1-in-5 (~20%); override via PRIMUM_HOLDOUT_MOD
+// (e.g. 3 -> ~33%) to grow the test set for more reliable measurement.
+const HOLDOUT_MOD = Number(process.env.PRIMUM_HOLDOUT_MOD ?? 5);
 const HOLDOUT_OFFSET = 2; // pick the 3rd, 8th, ... (avoids always taking the first/last)
 
 export function computeSplit(cases: Case[] = loadCases()): CorpusSplit {
