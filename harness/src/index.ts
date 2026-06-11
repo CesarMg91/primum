@@ -59,7 +59,8 @@ function parseArgs(argv: string[]): Args {
     maxTurns: Number(get("--max-turns") ?? 4),
     limit: get("--limit") ? Number(get("--limit")) : undefined,
     only: get("--only"),
-    split: get("--split") as Args["split"],
+    // npm on Windows can swallow `--split`; allow PRIMUM_SPLIT env as a fallback.
+    split: (get("--split") ?? process.env.PRIMUM_SPLIT) as Args["split"],
   };
 }
 
