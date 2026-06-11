@@ -18,8 +18,13 @@ from transformers import AutoTokenizer
 lora = sys.argv[1] if len(sys.argv) > 1 else "primum-medgemma-lora"
 out = sys.argv[2] if len(sys.argv) > 2 else "primum-medgemma-merged"
 
-base_id = json.load(open(os.path.join(lora, "adapter_config.json")))["base_model_name_or_path"]
-print(f"[merge_peft] base = {base_id}")
+base_raw = json.load(open(os.path.join(lora, "adapter_config.json")))["base_model_name_or_path"]
+# The adapter records the 4-bit (bnb) base; peft cannot merge LoRA into 4-bit
+# quantized layers. Merge onto the full-precision 16-bit base instead — the
+# standard QLoRA pattern (train on 4-bit, merge onto 16-bit).
+base_id = os.environ.get("BASE_MODEL") or base_raw.replace("-unsloth-bnb-4bit", "").replace("-bnb-4bit", "")
+print(f"[merge_peft] adapter base = {base_raw}")
+print(f"[merge_peft] merging onto 16-bit base = {base_id}")
 
 # MedGemma 4B is a multimodal Gemma3; load with the image-text class, falling
 # back to the explicit Gemma3 class on older/newer transformers.
