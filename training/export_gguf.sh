@@ -16,12 +16,17 @@ QUANT="${QUANT:-q8_0}"   # q8_0 = pure-python convert, ~4.3GB, high quality
 
 test -d "$LORA" || { echo "No encuentro $LORA — ¿corrió el entrenamiento?"; exit 1; }
 
-echo "[1/3] Fusionando LoRA -> 16-bit (reusa el adapter ya entrenado)…"
+# clean any partial merge from a previous failed attempt to free disk
+rm -rf "${OUT}-merged"
+
+echo "[1/3] Fusionando LoRA -> 16-bit (reusa el base 4-bit en caché, sin re-descargar)…"
 python - "$LORA" "${OUT}-merged" <<'PY'
 import sys
 from unsloth import FastModel
 lora, out = sys.argv[1], sys.argv[2]
-model, tok = FastModel.from_pretrained(lora, max_seq_length=4096, load_in_4bit=False)
+# load_in_4bit=True reuses the cached 4-bit base (no 8GB 16-bit re-download);
+# save_pretrained_merged dequantizes to 16-bit for a valid GGUF source.
+model, tok = FastModel.from_pretrained(lora, max_seq_length=4096, load_in_4bit=True)
 model.save_pretrained_merged(out, tok, save_method="merged_16bit")
 print("  merge 16-bit OK")
 PY
