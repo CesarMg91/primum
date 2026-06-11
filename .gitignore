@@ -37,3 +37,7 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# generated Ollama modelfiles (local artifacts)
+training/Modelfile.adapter
+training/Modelfile.local
