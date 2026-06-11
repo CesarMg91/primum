@@ -19,17 +19,8 @@ test -d "$LORA" || { echo "No encuentro $LORA — ¿corrió el entrenamiento?"; 
 # clean any partial merge from a previous failed attempt to free disk
 rm -rf "${OUT}-merged"
 
-echo "[1/3] Fusionando LoRA -> 16-bit (reusa el base 4-bit en caché, sin re-descargar)…"
-python - "$LORA" "${OUT}-merged" <<'PY'
-import sys
-from unsloth import FastModel
-lora, out = sys.argv[1], sys.argv[2]
-# load_in_4bit=True reuses the cached 4-bit base (no 8GB 16-bit re-download);
-# save_pretrained_merged dequantizes to 16-bit for a valid GGUF source.
-model, tok = FastModel.from_pretrained(lora, max_seq_length=4096, load_in_4bit=True)
-model.save_pretrained_merged(out, tok, save_method="merged_16bit")
-print("  merge 16-bit OK")
-PY
+echo "[1/3] Fusionando LoRA -> 16-bit con peft (evita el bug de merge de unsloth)…"
+python merge_peft.py "$LORA" "${OUT}-merged"
 
 echo "[2/3] Preparando llama.cpp (convertidor)…"
 test -d llama.cpp || git clone --depth 1 https://github.com/ggerganov/llama.cpp
