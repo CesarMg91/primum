@@ -72,20 +72,31 @@ def load_examples(path):
     return rows
 
 
-def fold_system_into_user(messages):
-    """Gemma chat templates reject a standalone system turn — fold it into the
-    first user message so it still conditions the model (and matches how Ollama's
-    gemma template renders a system prompt)."""
+def normalize_messages(messages):
+    """Make a transcript satisfy Gemma's strict chat template:
+      - no standalone system role  -> fold system text into the next user turn
+      - strict user/assistant alternation -> merge consecutive same-role turns
+    Our cases push several patient (user) turns in a row before the first model
+    reply, which Gemma's template rejects; merging fixes it while preserving all
+    content."""
     out, pending_system = [], None
     for m in messages:
-        if m["role"] == "system":
-            pending_system = m["content"]
+        role, content = m["role"], m["content"]
+        if role == "system":
+            pending_system = f"{pending_system}\n\n{content}" if pending_system else content
             continue
-        if pending_system and m["role"] == "user":
-            out.append({"role": "user", "content": f"{pending_system}\n\n{m['content']}"})
+        if role == "user" and pending_system:
+            content = f"{pending_system}\n\n{content}"
             pending_system = None
+        if out and out[-1]["role"] == role:  # merge consecutive same-role turns
+            out[-1]["content"] += f"\n\n{content}"
         else:
-            out.append(m)
+            out.append({"role": role, "content": content})
+    if pending_system:  # system with no following user (shouldn't happen): attach safely
+        if out and out[-1]["role"] == "user":
+            out[-1]["content"] += f"\n\n{pending_system}"
+        else:
+            out.append({"role": "user", "content": pending_system})
     return out
 
 
@@ -122,13 +133,8 @@ def main():
     # Render each conversation with the model's chat template. Try system-as-is;
     # fall back to folding system into the first user turn if the template balks.
     def render(example):
-        msgs = example["messages"]
-        try:
-            text = tokenizer.apply_chat_template(msgs, tokenize=False, add_generation_prompt=False)
-        except Exception:
-            text = tokenizer.apply_chat_template(
-                fold_system_into_user(msgs), tokenize=False, add_generation_prompt=False
-            )
+        msgs = normalize_messages(example["messages"])
+        text = tokenizer.apply_chat_template(msgs, tokenize=False, add_generation_prompt=False)
         return {"text": text}
 
     ds = Dataset.from_list(rows).map(render, remove_columns=["messages"])
