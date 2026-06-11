@@ -17,7 +17,12 @@ BASE_MODEL="${BASE_MODEL:-unsloth/medgemma-4b-it}"
 DATA="${DATA:-../dataset/gold.jsonl}"
 
 echo "[1/4] Instalando unsloth (puede tardar unos minutos)…"
-pip install -q unsloth huggingface_hub
+# The small container disk overflows during pip (unsloth pulls a fresh torch).
+# Don't cache wheels, and extract temp files on the big /workspace volume.
+export TMPDIR="${TMPDIR:-/workspace/tmp}"; mkdir -p "$TMPDIR"
+export PIP_CACHE_DIR="$TMPDIR/pip-cache"
+rm -rf /root/.cache/pip 2>/dev/null || true
+pip install --no-cache-dir -q unsloth huggingface_hub
 
 echo "[2/4] Login en HuggingFace…"
 # The HF_TOKEN env var is what actually authenticates downloads; an explicit
