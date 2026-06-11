@@ -20,7 +20,10 @@ echo "[1/4] Instalando unsloth (puede tardar unos minutos)…"
 pip install -q unsloth huggingface_hub
 
 echo "[2/4] Login en HuggingFace…"
-huggingface-cli login --token "$HF_TOKEN" --add-to-git-credential
+# The HF_TOKEN env var is what actually authenticates downloads; an explicit
+# login is optional. (huggingface-cli is deprecated -> use the new `hf` CLI.)
+hf auth login --token "$HF_TOKEN" --add-to-git-credential 2>/dev/null \
+  || echo "  (login opcional omitido — HF_TOKEN ya está en el entorno)"
 
 echo "[3/4] Verificando dataset…"
 test -f "$DATA" || { echo "No encuentro $DATA"; exit 1; }
