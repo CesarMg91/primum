@@ -1,6 +1,6 @@
 {
-  "rule": "stratified hold-out: within each danger_tested group sorted by id, index % 5 === 2 -> test",
-  "generatedFrom": 72,
+  "rule": "stratified hold-out: within each danger_tested group sorted by id, index % 5 === 2 -> test | cycle2: +0073-0079 manually appended to train (test frozen)",
+  "generatedFrom": 79,
   "test": [
     "0005",
     "0011",
@@ -75,43 +75,13 @@
     "0068",
     "0069",
     "0070",
-    "0072"
-  ],
-  "byDanger": {
-    "contraindicacion": {
-      "total": 21,
-      "test": 4,
-      "train": 17
-    },
-    "derivacion_omitida": {
-      "total": 28,
-      "test": 6,
-      "train": 22
-    },
-    "interaccion": {
-      "total": 11,
-      "test": 2,
-      "train": 9
-    },
-    "alucinacion": {
-      "total": 3,
-      "test": 1,
-      "train": 2
-    },
-    "dosis": {
-      "total": 6,
-      "test": 1,
-      "train": 5
-    },
-    "sobre_alcance": {
-      "total": 1,
-      "test": 0,
-      "train": 1
-    },
-    "localizacion": {
-      "total": 2,
-      "test": 0,
-      "train": 2
-    }
-  }
+    "0072",
+    "0073",
+    "0074",
+    "0075",
+    "0076",
+    "0077",
+    "0078",
+    "0079"
+  ]
 }
