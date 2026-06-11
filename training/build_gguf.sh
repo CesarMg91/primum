@@ -22,6 +22,9 @@ python merge_peft.py "$LORA" primum-medgemma-merged
 
 echo "[2/4] Extrayendo el modelo de texto (tira la visión)…"
 python make_text_model.py primum-medgemma-merged primum-medgemma-text
+# free disk early: the HF cache and the merged model aren't needed past here
+# (small /workspace quotas overflow otherwise)
+rm -rf "$HF_HOME" primum-medgemma-merged 2>/dev/null || true
 
 echo "[3/4] Preparando llama.cpp…"
 test -d llama.cpp || git clone --depth 1 https://github.com/ggerganov/llama.cpp
