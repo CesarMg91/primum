@@ -176,13 +176,19 @@ def main():
     tokenizer.save_pretrained(f"{args.out}-lora")
 
     if not args.no_gguf:
-        print(f"[primum] exporting GGUF ({args.gguf_quant}) -> {args.out}-gguf")
-        model.save_pretrained_gguf(
-            f"{args.out}-gguf",
-            tokenizer,
-            quantization_method=args.gguf_quant,
-        )
-        write_modelfile(args.out)
+        try:
+            print(f"[primum] exporting GGUF ({args.gguf_quant}) -> {args.out}-gguf")
+            model.save_pretrained_gguf(
+                f"{args.out}-gguf",
+                tokenizer,
+                quantization_method=args.gguf_quant,
+            )
+            write_modelfile(args.out)
+        except Exception as e:
+            # unsloth's bundled GGUF export is fragile on some versions. The LoRA
+            # is safely saved, so fall back to the standalone recovery converter.
+            print(f"[primum] GGUF export via unsloth failed ({e}).")
+            print(f"[primum] LoRA is safe in {args.out}-lora — run:  bash export_gguf.sh")
 
     print("[primum] done.")
 

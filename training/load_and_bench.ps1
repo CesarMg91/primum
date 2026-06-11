@@ -8,19 +8,20 @@
 
 param(
   [string]$GgufDir = ".\out",
+  [string]$GgufFile = "primum-medgemma-q8_0.gguf",
   [string]$ModelName = "primum-medgemma",
   [string]$Judge = "anthropic:claude-opus-4-8"
 )
 
 $ErrorActionPreference = "Stop"
 
-$gguf = Join-Path $GgufDir "unsloth.Q4_K_M.gguf"
-if (-not (Test-Path $gguf)) { throw "No encuentro $gguf. Pasa -GgufDir con la carpeta donde bajaste el .gguf y el Modelfile." }
+$gguf = Join-Path $GgufDir $GgufFile
+if (-not (Test-Path $gguf)) { throw "No encuentro $gguf. Pasa -GgufDir (carpeta del .gguf) y -GgufFile (nombre del archivo) si difiere." }
 
 # Modelfile apuntando al gguf local (regenerado por si la ruta cambió)
 $modelfile = Join-Path $GgufDir "Modelfile.local"
 @"
-FROM ./unsloth.Q4_K_M.gguf
+FROM ./$GgufFile
 PARAMETER temperature 0.6
 PARAMETER top_p 0.9
 PARAMETER num_ctx 4096
