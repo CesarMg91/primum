@@ -71,3 +71,26 @@ para ir por el GGUF del modelo de texto completo, no por el adapter.
   navega a `/workspace` → clic derecho en el archivo → Download. Para carpetas,
   empácalas primero: `tar czf /workspace/x.tar.gz carpeta`.
 - **Apaga el pod (Stop) al terminar** para no gastar créditos.
+
+## Pod GPU (dev loop rápido) — disco y Ollama
+
+Correr el harness en el pod GPU (Ollama servido por GPU) hace adversario/benchmark
+5-10x más rápido que en CPU local. Lecciones de disco (se llena fácil):
+
+- **Volumen de 80GB SIEMPRE** para el pipeline 4B. El pico (caché HF ~12GB + modelo
+  texto 8GB + gguf 4GB + modelo Ollama 4GB + checkpoints) supera 25-30GB. Un volumen
+  de 20-40GB da "disk quota exceeded" / "no space left on device".
+- **Ollama guarda en `/root/.ollama` (container chico) por defecto** → llena el container.
+  Fix: `export OLLAMA_MODELS=/workspace/ollama-models` antes de `ollama serve`.
+- **El `df -h /workspace` engaña**: muestra el disco de red (TBs), no tu cuota. Usa
+  `du -sh /workspace` para el uso real contra cuota.
+- **Container disk se llena en `pip install`** (unsloth jala torch ~5GB): `pip --no-cache-dir`
+  + `TMPDIR=/workspace/tmp` (ver runpod_bootstrap.sh).
+- **Importar GGUF externo a Ollama del pod falla** (`failed to validate GGUF with
+  llama-quantize`): el Ollama del pod usa otra llama.cpp. Fix: importar el safetensors
+  de texto y dejar que Ollama cuantice — `ollama create NAME --quantize q4_K_M -f Modelfile`
+  con `FROM ./primum-medgemma-text`.
+- Limpia entre pasos: `rm -rf outputs *.gguf llama.cpp /workspace/hf primum-medgemma-merged`.
+
+Flujo: deploy pod (volumen 80GB) → `pod_allinone.sh` → entrenar → `ollama create` del
+safetensors → correr harness en el pod (localhost Ollama GPU). Datos sincronizan por git.
