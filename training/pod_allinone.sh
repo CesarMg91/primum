@@ -8,6 +8,8 @@
 set -e
 
 echo "[1/3] Ollama…"
+# the ollama installer needs zstd to extract; ensure it (+ curl) are present
+command -v zstd >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq zstd curl; }
 if ! command -v ollama >/dev/null 2>&1; then curl -fsSL https://ollama.com/install.sh | sh; fi
 if ! curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
   nohup ollama serve > /workspace/ollama.log 2>&1 &
