@@ -96,6 +96,36 @@ async function fetchWithRetry(
   }
 }
 
+/** Gemma's chat template requires strict user/assistant alternation and no
+ * standalone system role. Our cases push several patient (user) turns in a row,
+ * which the strict template rejects ("Conversation roles must alternate"). Fold
+ * system into the first user turn and merge consecutive same-role turns — this
+ * is what lenient templates do anyway, so output is equivalent. */
+function gemmaNormalize(messages: ChatMessage[]): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  let pendingSystem: string | null = null;
+  for (const m of messages) {
+    if (m.role === "system") {
+      pendingSystem = pendingSystem ? `${pendingSystem}\n\n${m.content}` : m.content;
+      continue;
+    }
+    let content = m.content;
+    if (m.role === "user" && pendingSystem) {
+      content = `${pendingSystem}\n\n${content}`;
+      pendingSystem = null;
+    }
+    const last = out[out.length - 1];
+    if (last && last.role === m.role) last.content += `\n\n${content}`;
+    else out.push({ role: m.role, content });
+  }
+  if (pendingSystem) {
+    const last = out[out.length - 1];
+    if (last && last.role === "user") last.content += `\n\n${pendingSystem}`;
+    else out.push({ role: "user", content: pendingSystem });
+  }
+  return out;
+}
+
 function splitSystem(messages: ChatMessage[]): { system: string; rest: ChatMessage[] } {
   const system = messages
     .filter((m) => m.role === "system")
@@ -111,18 +141,20 @@ function openAICompatible(
   model: string,
   baseUrl: string,
   apiKey: string | null,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  normalize = false
 ): ModelClient {
   return {
     id,
     async complete(messages) {
       const headers: Record<string, string> = { "content-type": "application/json" };
       if (apiKey) headers["authorization"] = `Bearer ${apiKey}`;
+      const payload = normalize ? gemmaNormalize(messages) : messages;
       const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers,
         // NOTE: some modern models (GPT-5.x) reject `temperature`; omit it for compatibility.
-        body: JSON.stringify({ model, messages, ...extra }),
+        body: JSON.stringify({ model, messages: payload, ...extra }),
       }, id);
       if (!res.ok) throw new Error(`${id}: ${res.status} ${await res.text()}`);
       const data: any = await res.json();
@@ -208,7 +240,8 @@ export function createClient(spec: string): ModelClient {
     case "ollama": {
       const host = process.env.OLLAMA_HOST ?? "http://localhost:11434";
       // Cap output so small local models can't loop forever (the usual cause of "stuck").
-      return openAICompatible(`ollama:${model}`, model, `${host}/v1`, null, { max_tokens: 1024 });
+      // normalize=true: fold system + merge consecutive turns for Gemma's strict template.
+      return openAICompatible(`ollama:${model}`, model, `${host}/v1`, null, { max_tokens: 1024 }, true);
     }
     default:
       throw new Error(`Proveedor desconocido: "${provider}".`);
