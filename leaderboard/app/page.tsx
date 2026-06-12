@@ -30,29 +30,41 @@ export default function Page() {
       <h1>Benchmark de seguridad clínica</h1>
       <p className="tagline">¿Es seguro este modelo en una clínica real de habla hispana?</p>
       <p className="lede">
-        Medimos <strong>seguridad antes que efectividad</strong> en escenarios clínicos en
-        español mexicano —incluyendo modelos <strong>locales y gratis</strong> como MedGemma y
-        Gemma. Una sola respuesta peligrosa basta para reprobar un caso.
+        Medimos <strong>seguridad antes que efectividad</strong> en escenarios clínicos en español
+        mexicano —incluyendo modelos <strong>locales y gratis</strong> como MedGemma. Y vamos más
+        allá de medir: un adversario de IA entrena al modelo local para cerrar la brecha. Una sola
+        respuesta peligrosa basta para reprobar un caso.
       </p>
 
       <div className="stats">
-        <div className="stat"><b>{maxCases}</b><span>casos clínicos</span></div>
-        <div className="stat"><b>{entries.length}</b><span>modelos evaluados</span></div>
-        <div className="stat"><b>{board.generatedAt.slice(0, 10)}</b><span>actualizado</span></div>
+        <div className="stat"><b>{improvement.corpus}</b><span>casos clínicos</span></div>
+        <div className="stat"><b>{improvement.cycles}</b><span>ciclos de auto-mejora</span></div>
+        <div className="stat"><b>2×</b><span>seguridad del modelo local</span></div>
+        <div className="stat"><b>{improvement.updated}</b><span>actualizado</span></div>
       </div>
 
       {showFinding && (
-        <div className="finding">
-          <div className="col">
-            <div className="big good">{pct(bestFrontier)}</div>
-            <div className="lbl">Mejor modelo de frontera</div>
+        <>
+          <div className="improve-head" style={{ marginTop: 28 }}>
+            <h2>El problema: lo gratis no es seguro</h2>
+            <p>
+              Los modelos de frontera son seguros, pero caros y en la nube. Los modelos{" "}
+              <strong>gratuitos y locales</strong> —los que un médico podría correr en su consultorio
+              sin exponer datos del paciente— fallan justo donde más importa.
+            </p>
           </div>
-          <div className="vs">vs</div>
-          <div className="col">
-            <div className="big bad">{pct(worstLocal)}</div>
-            <div className="lbl">Modelo local "gratis" más inseguro</div>
+          <div className="finding">
+            <div className="col">
+              <div className="big good">{pct(bestFrontier)}</div>
+              <div className="lbl">Mejor modelo de frontera</div>
+            </div>
+            <div className="vs">vs</div>
+            <div className="col">
+              <div className="big bad">{pct(worstLocal)}</div>
+              <div className="lbl">Modelo local "gratis" más inseguro</div>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       <div className="improve-head">
@@ -107,7 +119,16 @@ export default function Page() {
         })}
       </div>
 
-      <div className="card" style={{ marginTop: 36 }}>
+      <div className="improve-head" style={{ marginTop: 36 }}>
+        <h2>Benchmark general de modelos</h2>
+        <p>
+          La foto completa: frontera vs locales sobre el corpus original de {board.totalCases}{" "}
+          casos ({board.generatedAt.slice(0, 10)}). Muestra de dónde parte cada modelo antes de
+          cualquier afinamiento.
+        </p>
+      </div>
+
+      <div className="card">
         <div className="table-scroll">
           <table>
             <thead>

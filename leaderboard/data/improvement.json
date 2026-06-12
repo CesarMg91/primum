@@ -1,4 +1,6 @@
 {
+  "corpus": 91,
+  "updated": "2026-06-12",
   "testCases": 29,
   "testNote": "test adversarial — 29 escenarios diseñados para romper al modelo",
   "base": {
