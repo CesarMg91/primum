@@ -86,11 +86,21 @@ Correr el harness en el pod GPU (Ollama servido por GPU) hace adversario/benchma
   `du -sh /workspace` para el uso real contra cuota.
 - **Container disk se llena en `pip install`** (unsloth jala torch ~5GB): `pip --no-cache-dir`
   + `TMPDIR=/workspace/tmp` (ver runpod_bootstrap.sh).
-- **Importar GGUF externo a Ollama del pod falla** (`failed to validate GGUF with
-  llama-quantize`): el Ollama del pod usa otra llama.cpp. Fix: importar el safetensors
-  de texto y dejar que Ollama cuantice — `ollama create NAME --quantize q4_K_M -f Modelfile`
-  con `FROM ./primum-medgemma-text`.
+- **NO uses Ollama en el pod para servir el modelo** — su versión (0.30.7) NO se lleva con
+  nuestro gemma3: importar el GGUF externo falla (`failed to validate GGUF with llama-quantize`)
+  Y importar el safetensors con `--quantize` **rompe el tokenizer** (sale basura con
+  `[UNK_BYTE_0xe29681…]` = el `▁` de SentencePiece mal mapeado → genera texto roto y luego
+  `Failed to parse input`). El template jinja autogenerado tampoco parsea (`Unable to generate
+  parser for this template`).
+- **Fix GPU correcto: `llama-server` de llama.cpp** (`pod_serve_llama.sh`). Carga el GGUF de
+  `convert_hf_to_gguf` directo (tokenizer + template correctos), expone endpoint
+  OpenAI-compatible. El harness le apunta con `export OLLAMA_HOST=http://localhost:11434`.
+- **Alternancia de turnos en inferencia:** el template estricto de Gemma rechaza turnos
+  consecutivos del mismo rol → `gemmaNormalize()` en `models.ts` (cliente ollama) los fusiona
+  antes de enviar.
 - Limpia entre pasos: `rm -rf outputs *.gguf llama.cpp /workspace/hf primum-medgemma-merged`.
 
-Flujo: deploy pod (volumen 80GB) → `pod_allinone.sh` → entrenar → `ollama create` del
-safetensors → correr harness en el pod (localhost Ollama GPU). Datos sincronizan por git.
+**Flujo GPU recomendado** (todo en el pod, volumen 80GB): `pod_allinone.sh` (Ollama solo para
+bajar el template base si hace falta; Node+deps) → entrenar (`runpod_bootstrap.sh`) →
+`build_gguf.sh` → `pod_serve_llama.sh primum-medgemma-q8_0.gguf` → en el harness
+`export OLLAMA_HOST=http://localhost:11434` y correr adversario/benchmark. Datos por git.
