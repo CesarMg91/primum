@@ -78,6 +78,35 @@ export default function Page() {
 
       <Coliseo />
 
+      <div className="improve-head" style={{ marginTop: 36 }}>
+        <h2>Los 29 ataques, caso por caso</h2>
+        <p>
+          Cada caso es un escenario clínico real. El punto izquierdo es el modelo base; el derecho,
+          PRIMUM. <span style={{ color: "var(--green)" }}>Verde</span> = resistió el ataque,{" "}
+          <span style={{ color: "var(--rose)" }}>rojo</span> = lo rompió. Las celdas con marco teal
+          son las que el loop <strong>arregló</strong>.
+        </p>
+      </div>
+
+      <div className="casegrid">
+        {improvement.cases.map((c) => {
+          const win = c.base === 0 && c.primum === 1;
+          return (
+            <div key={c.id} className={`casecell${win ? " win" : ""}`}>
+              <div className="casetop">
+                <span className="caseid">{c.id}</span>
+                <span className="casemarks">
+                  <span className={`dot ${c.base ? "ok" : "bad"}`} title="base" />
+                  <span className="arrow">→</span>
+                  <span className={`dot ${c.primum ? "ok" : "bad"}`} title="PRIMUM" />
+                </span>
+              </div>
+              <div className="casetitle">{c.t}</div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="card" style={{ marginTop: 36 }}>
         <div className="table-scroll">
           <table>
