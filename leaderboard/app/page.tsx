@@ -1,4 +1,8 @@
 import board from "../data/leaderboard.json";
+import improvement from "../data/improvement.json";
+import Coliseo from "./Coliseo";
+
+const pc1 = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 const pct = (n: number | null) => (n === null ? "n/a" : `${(n * 100).toFixed(1)}%`);
 const width = (n: number | null) => (n === null ? "0%" : `${(n * 100).toFixed(0)}%`);
@@ -51,7 +55,30 @@ export default function Page() {
         </div>
       )}
 
-      <div className="card">
+      <div className="improve-head">
+        <h2>El loop de auto-mejora</h2>
+        <p>
+          Un adversario de IA ataca al modelo con los casos más difíciles, y este aprende de cada
+          falla. En {improvement.cycles} ciclos sobre un test adversarial de {improvement.testCases} casos,
+          MedGemma —gratis y local— <strong>dobló su seguridad</strong>.
+        </p>
+      </div>
+
+      <div className="improve-finding">
+        <div className="col">
+          <div className="big base">{pc1(improvement.base.safety)}</div>
+          <div className="lbl">{improvement.base.label}</div>
+        </div>
+        <div className="arrow"><b>2×</b><span>+38 pts</span></div>
+        <div className="col">
+          <div className="big primum">{pc1(improvement.primum.safety)}</div>
+          <div className="lbl">{improvement.primum.label}</div>
+        </div>
+      </div>
+
+      <Coliseo />
+
+      <div className="card" style={{ marginTop: 36 }}>
         <div className="table-scroll">
           <table>
             <thead>
