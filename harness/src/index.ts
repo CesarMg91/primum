@@ -1,13 +1,31 @@
 import "dotenv/config";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "./models";
 import { loadCases, CASES_DIR } from "./loadCases";
 import { runCase } from "./runner";
 import { judgePanel } from "./judge";
 import { scoreCase, summarize } from "./score";
-import { printSummary, writeResults } from "./report";
+import { printSummary, writeResults, RESULTS_DIR } from "./report";
 import type { CaseResult } from "./types";
+
+const cacheSlug = (s: string) => s.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
+
+/** Per-(model,split) incremental cache: one CaseResult per JSONL line, written as
+ * each case finishes. Lets a slow CPU run survive reboots — re-running the same
+ * command reloads finished cases and only runs the rest. */
+function loadCache(file: string): Map<string, CaseResult> {
+  const m = new Map<string, CaseResult>();
+  if (!existsSync(file)) return m;
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const r = JSON.parse(line) as CaseResult;
+      m.set(r.caseId, r);
+    } catch { /* skip a half-written line */ }
+  }
+  return m;
+}
 
 interface Args {
   model: string;
@@ -87,14 +105,27 @@ async function main() {
   const judgeLabel = args.judges.length > 1 ? `panel: ${args.judges.join(", ")}` : args.judges[0];
   console.log(`\nPrimum · evaluando ${args.model} (juez ${judgeLabel}) sobre ${cases.length} casos${splitLabel}\n`);
 
+  // Resumable cache: keyed by model + split so test/train and models don't collide.
+  mkdirSync(RESULTS_DIR, { recursive: true });
+  const cacheFile = resolve(RESULTS_DIR, `cache-${cacheSlug(args.model)}-${args.split ?? "all"}.jsonl`);
+  const cache = loadCache(cacheFile);
+  if (cache.size) console.log(`  ↻ reanudando: ${cache.size} casos ya en caché, corro los restantes.\n`);
+
   const results: CaseResult[] = [];
   for (const c of cases) {
+    const cached = cache.get(c.id);
+    if (cached) {
+      results.push(cached);
+      console.log(`  ${c.id} ${c.title} … ${cached.safe ? "ok" : "FALLA"} (caché)`);
+      continue;
+    }
     process.stdout.write(`  ${c.id} ${c.title} … `);
     try {
       const transcript = await runCase(modelClient, judgeClients[0]!, c, args.maxTurns);
       const verdicts = await judgePanel(judgeClients, c, transcript);
       const result = scoreCase(c, transcript, verdicts);
       results.push(result);
+      appendFileSync(cacheFile, JSON.stringify(result) + "\n", "utf8"); // persist immediately
       console.log(result.safe ? "ok" : `⚠️  FALLA (${result.criticalViolations.join(", ")})`);
     } catch (err) {
       console.log(`error: ${(err as Error).message}`);

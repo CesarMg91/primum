@@ -44,17 +44,18 @@ async function fetchWithRetry(
   url: string,
   init: Parameters<typeof fetch>[1],
   label: string,
-  maxRetries = 6
+  maxRetries = 6,
+  timeoutMs = 300_000
 ): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 300_000); // 5 min/llamada
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     let res: Response;
     try {
       res = await fetch(url, { ...init, signal: controller.signal });
     } catch (e) {
       if ((e as Error).name === "AbortError") {
-        throw new Error(`${label}: timeout — sin respuesta en 5 min (¿modelo local atorado?).`);
+        throw new Error(`${label}: timeout — sin respuesta en ${Math.round(timeoutMs / 1000)}s (¿modelo local atorado?).`);
       }
       // Transient network error ("fetch failed"): back off and retry.
       if (attempt >= maxRetries) {
@@ -142,7 +143,8 @@ function openAICompatible(
   baseUrl: string,
   apiKey: string | null,
   extra: Record<string, unknown> = {},
-  normalize = false
+  normalize = false,
+  timeoutMs = 300_000
 ): ModelClient {
   return {
     id,
@@ -155,7 +157,7 @@ function openAICompatible(
         headers,
         // NOTE: some modern models (GPT-5.x) reject `temperature`; omit it for compatibility.
         body: JSON.stringify({ model, messages: payload, ...extra }),
-      }, id);
+      }, id, 6, timeoutMs);
       if (!res.ok) throw new Error(`${id}: ${res.status} ${await res.text()}`);
       const data: any = await res.json();
       return data.choices?.[0]?.message?.content ?? "";
@@ -241,7 +243,10 @@ export function createClient(spec: string): ModelClient {
       const host = process.env.OLLAMA_HOST ?? "http://localhost:11434";
       // Cap output so small local models can't loop forever (the usual cause of "stuck").
       // normalize=true: fold system + merge consecutive turns for Gemma's strict template.
-      return openAICompatible(`ollama:${model}`, model, `${host}/v1`, null, { max_tokens: 1024 }, true);
+      // 420s timeout: this box has no usable GPU (Ollama runs 100% CPU at ~0.2s/token),
+      // so a 1024-token generation can take ~3.5 min. 420s covers the slowest healthy call
+      // without spurious timeouts, while still bounding a truly wedged request.
+      return openAICompatible(`ollama:${model}`, model, `${host}/v1`, null, { max_tokens: 1024 }, true, 420_000);
     }
     default:
       throw new Error(`Proveedor desconocido: "${provider}".`);
