@@ -47,6 +47,8 @@ def parse_args():
     p.add_argument("--out", default="primum-medgemma", help="output dir / model name")
     p.add_argument("--epochs", type=float, default=3.0)
     p.add_argument("--lr", type=float, default=2e-4)
+    p.add_argument("--dropout", type=float, default=0.0,
+                   help="LoRA dropout; >0 regularizes against catastrophic forgetting (cycle 5: 0.05)")
     p.add_argument("--rank", type=int, default=16, help="LoRA rank")
     p.add_argument("--batch", type=int, default=2)
     p.add_argument("--accum", type=int, default=4, help="grad accumulation steps")
@@ -132,7 +134,7 @@ def main():
         model,
         r=args.rank,
         lora_alpha=args.rank * 2,
-        lora_dropout=0.0,
+        lora_dropout=args.dropout,
         bias="none",
         finetune_language_layers=True,
         finetune_attention_modules=True,
