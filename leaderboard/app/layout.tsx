@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SwRegister from "./sw-register";
+import { LangProvider } from "./i18n";
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION, KEYWORDS } from "./seo";
 
 export const metadata: Metadata = {
@@ -98,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        {children}
+        <LangProvider>{children}</LangProvider>
         <SwRegister />
       </body>
     </html>

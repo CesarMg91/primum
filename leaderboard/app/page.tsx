@@ -1,18 +1,21 @@
+"use client";
 import board from "../data/leaderboard.json";
 import improvement from "../data/improvement.json";
 import Coliseo from "./Coliseo";
+import { useLang, LangToggle } from "./i18n";
 
 const pc1 = (n: number) => `${(n * 100).toFixed(1)}%`;
-
 const pct = (n: number | null) => (n === null ? "n/a" : `${(n * 100).toFixed(1)}%`);
 const width = (n: number | null) => (n === null ? "0%" : `${(n * 100).toFixed(0)}%`);
 const isLocal = (m: string) => m.startsWith("ollama:");
 const modelName = (m: string) => (m.includes(":") ? m.slice(m.indexOf(":") + 1) : m);
-const judgeLabel = (j: string) => (j.includes("+") ? "panel de jueces" : modelName(j));
 const cls = (n: number | null) => (n === null ? "" : n >= 0.9 ? "good" : n >= 0.7 ? "warn" : "bad");
 const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : String(i + 1));
 
 export default function Page() {
+  const { t } = useLang();
+  const judgeLabel = (j: string) => (j.includes("+") ? t.judgePanel : modelName(j));
+
   const entries = [...board.entries].sort(
     (a, b) => b.safetyScore - a.safetyScore || b.effectivenessScore - a.effectivenessScore
   );
@@ -26,78 +29,61 @@ export default function Page() {
 
   return (
     <main className="wrap">
-      <p className="eyebrow">Primum · primum non nocere</p>
-      <h1>Benchmark de seguridad clínica</h1>
-      <p className="tagline">¿Es seguro este modelo en una clínica real de habla hispana?</p>
-      <p className="lede">
-        Medimos <strong>seguridad antes que efectividad</strong> en escenarios clínicos en español
-        mexicano —incluyendo modelos <strong>locales y gratis</strong> como MedGemma. Y vamos más
-        allá de medir: un adversario de IA entrena al modelo local para cerrar la brecha. Una sola
-        respuesta peligrosa basta para reprobar un caso.
-      </p>
+      <LangToggle />
+      <p className="eyebrow">{t.eyebrow}</p>
+      <h1>{t.h1}</h1>
+      <p className="tagline">{t.tagline}</p>
+      <p className="lede" dangerouslySetInnerHTML={{ __html: t.lede }} />
 
       <div className="stats">
-        <div className="stat"><b>{improvement.corpus}</b><span>casos clínicos</span></div>
-        <div className="stat"><b>{improvement.cycles}</b><span>ciclos de auto-mejora</span></div>
-        <div className="stat"><b>2×</b><span>seguridad del modelo local</span></div>
-        <div className="stat"><b>{improvement.updated}</b><span>actualizado</span></div>
+        <div className="stat"><b>{improvement.corpus}</b><span>{t.statCases}</span></div>
+        <div className="stat"><b>{improvement.cycles}</b><span>{t.statCycles}</span></div>
+        <div className="stat"><b>2×</b><span>{t.statSafety}</span></div>
+        <div className="stat"><b>{improvement.updated}</b><span>{t.statUpdated}</span></div>
       </div>
 
       {showFinding && (
         <>
           <div className="improve-head" style={{ marginTop: 28 }}>
-            <h2>El problema: lo gratis no es seguro</h2>
-            <p>
-              Los modelos de frontera son seguros, pero caros y en la nube. Los modelos{" "}
-              <strong>gratuitos y locales</strong> —los que un médico podría correr en su consultorio
-              sin exponer datos del paciente— fallan justo donde más importa.
-            </p>
+            <h2>{t.problemH2}</h2>
+            <p dangerouslySetInnerHTML={{ __html: t.problemBody }} />
           </div>
           <div className="finding">
             <div className="col">
               <div className="big good">{pct(bestFrontier)}</div>
-              <div className="lbl">Mejor modelo de frontera</div>
+              <div className="lbl">{t.bestFrontier}</div>
             </div>
             <div className="vs">vs</div>
             <div className="col">
               <div className="big bad">{pct(worstLocal)}</div>
-              <div className="lbl">Modelo local "gratis" más inseguro</div>
+              <div className="lbl">{t.worstLocal}</div>
             </div>
           </div>
         </>
       )}
 
       <div className="improve-head">
-        <h2>El loop de auto-mejora</h2>
-        <p>
-          Un adversario de IA ataca al modelo con los casos más difíciles, y este aprende de cada
-          falla. En {improvement.cycles} ciclos sobre un test adversarial de {improvement.testCases} casos,
-          MedGemma —gratis y local— <strong>dobló su seguridad</strong>.
-        </p>
+        <h2>{t.loopH2}</h2>
+        <p dangerouslySetInnerHTML={{ __html: t.loopBody(improvement.cycles, improvement.testCases) }} />
       </div>
 
       <div className="improve-finding">
         <div className="col">
           <div className="big base">{pc1(improvement.base.safety)}</div>
-          <div className="lbl">{improvement.base.label}</div>
+          <div className="lbl">{t.baseLabel}</div>
         </div>
         <div className="arrow"><b>2×</b><span>+38 pts</span></div>
         <div className="col">
           <div className="big primum">{pc1(improvement.primum.safety)}</div>
-          <div className="lbl">{improvement.primum.label}</div>
+          <div className="lbl">{t.primumLabel}</div>
         </div>
       </div>
 
       <Coliseo />
 
       <div className="improve-head" style={{ marginTop: 36 }}>
-        <h2>Los 29 ataques, caso por caso</h2>
-        <p>
-          Cada caso es un escenario clínico real. El punto izquierdo es el modelo base; el derecho,
-          PRIMUM. <span style={{ color: "var(--green)" }}>Verde</span> = resistió el ataque,{" "}
-          <span style={{ color: "var(--rose)" }}>rojo</span> = lo rompió. Las celdas con marco teal
-          son las que el loop <strong>arregló</strong>.
-        </p>
+        <h2>{t.casesH2(improvement.testCases)}</h2>
+        <p dangerouslySetInnerHTML={{ __html: t.casesBody }} />
       </div>
 
       <div className="casegrid">
@@ -120,12 +106,8 @@ export default function Page() {
       </div>
 
       <div className="improve-head" style={{ marginTop: 36 }}>
-        <h2>Benchmark general de modelos</h2>
-        <p>
-          La foto completa: frontera vs locales sobre el corpus original de {board.totalCases}{" "}
-          casos ({board.generatedAt.slice(0, 10)}). Muestra de dónde parte cada modelo antes de
-          cualquier afinamiento.
-        </p>
+        <h2>{t.generalH2}</h2>
+        <p dangerouslySetInnerHTML={{ __html: t.generalBody(board.totalCases, board.generatedAt.slice(0, 10)) }} />
       </div>
 
       <div className="card">
@@ -134,11 +116,11 @@ export default function Page() {
             <thead>
               <tr>
                 <th className="rank">#</th>
-                <th>Modelo</th>
-                <th>🛡️ Safety</th>
-                <th>⚠️ Alto riesgo</th>
-                <th>✓ Efectividad</th>
-                <th>Casos</th>
+                <th>{t.thModel}</th>
+                <th>{t.thSafety}</th>
+                <th>{t.thHighRisk}</th>
+                <th>{t.thEffect}</th>
+                <th>{t.thCases}</th>
               </tr>
             </thead>
             <tbody>
@@ -148,11 +130,11 @@ export default function Page() {
                   <td className="model">
                     {modelName(e.model)}
                     <span className={`badge ${isLocal(e.model) ? "local" : "frontier"}`}>
-                      {isLocal(e.model) ? "LOCAL" : "FRONTERA"}
+                      {isLocal(e.model) ? t.badgeLocal : t.badgeFrontier}
                     </span>
                     <span className="judge">
-                      juez: {judgeLabel(e.judge)}
-                      {e.model === e.judge && " · ⚠ auto-juez"}
+                      {t.judge}: {judgeLabel(e.judge)}
+                      {e.model === e.judge && t.selfJudge}
                     </span>
                   </td>
                   <td>
@@ -176,30 +158,14 @@ export default function Page() {
       </div>
 
       <div className="how">
-        <div className="item">
-          <h3>🛡️ Safety Score</h3>
-          <p>% de casos sin ninguna violación crítica. Una sola respuesta peligrosa reprueba el caso.</p>
-        </div>
-        <div className="item">
-          <h3>⚠️ Alto riesgo</h3>
-          <p>Safety calculado solo sobre los casos etiquetados como de alto riesgo clínico.</p>
-        </div>
-        <div className="item">
-          <h3>✓ Efectividad</h3>
-          <p>Qué tan completa y correcta es la respuesta más allá de evitar el daño.</p>
-        </div>
-        <div className="item">
-          <h3>⚖️ Juez imparcial</h3>
-          <p>Un LLM-as-judge estricto evalúa cada respuesta citando evidencia textual.</p>
-        </div>
+        <div className="item"><h3>{t.howSafetyH}</h3><p>{t.howSafetyP}</p></div>
+        <div className="item"><h3>{t.howHighH}</h3><p>{t.howHighP}</p></div>
+        <div className="item"><h3>{t.howEffectH}</h3><p>{t.howEffectP}</p></div>
+        <div className="item"><h3>{t.howJudgeH}</h3><p>{t.howJudgeP}</p></div>
       </div>
 
       <footer>
-        <p>
-          {maxCases} casos · español mexicano (es-MX) · metodología abierta en el{" "}
-          <a href="https://github.com/CesarMg91/primum">repositorio</a>. Las filas atenuadas en "Casos" se
-          corrieron sobre un set menor (no comparables). Esto no constituye consejo médico.
-        </p>
+        <p dangerouslySetInnerHTML={{ __html: t.footer(maxCases) }} />
       </footer>
     </main>
   );

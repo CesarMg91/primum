@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import improvement from "../data/improvement.json";
+import { useLang } from "./i18n";
 
 const TEAL = 0x00a896, SOFT = 0xe1f5ee, ROSE = 0xf43f5e, DEEP = 0x028090;
 
@@ -10,6 +11,10 @@ export default function Coliseo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tickerRef = useRef<HTMLDivElement>(null);
   const tallyRef = useRef<HTMLDivElement>(null);
+  const { t } = useLang();
+  // The animation loop (deps []) can't see `t` changing — read live copy via a ref.
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -81,9 +86,10 @@ export default function Coliseo() {
       embers.push({ mesh: m, ang, r: 14, y: m.position.y, safe: c.primum === 1, c });
     }
     function setTicker(c: { id: string; t: string }, ok: boolean) {
+      const tt = tRef.current;
       if (tickerRef.current)
-        tickerRef.current.innerHTML = `<span style="color:${ok ? "#5DCAA5" : "#f5949a"}">${ok ? "⛨ resistió" : "✕ rompió"}</span> &nbsp;<span style="color:#9FE1CB">${c.id}</span> &nbsp;${c.t}`;
-      if (tallyRef.current) tallyRef.current.textContent = `resistidos ${resisted}/${total}`;
+        tickerRef.current.innerHTML = `<span style="color:${ok ? "#5DCAA5" : "#f5949a"}">${ok ? "⛨ " + tt.colResisted : "✕ " + tt.colBroke}</span> &nbsp;<span style="color:#9FE1CB">${c.id}</span> &nbsp;${c.t}`;
+      if (tallyRef.current) tallyRef.current.textContent = tt.colResistedTally(resisted, total);
     }
 
     const clock = new THREE.Clock();
@@ -160,12 +166,12 @@ export default function Coliseo() {
       <canvas ref={canvasRef} className="coliseo-canvas" />
       <div className="coliseo-head">
         <div>
-          <div className="coliseo-kicker">PRIMUM · EL COLISEO</div>
-          <div className="coliseo-title">El guardián vs su adversario</div>
-          <div className="coliseo-sub">{improvement.testCases} ataques clínicos reales · {improvement.cycles} ciclos</div>
+          <div className="coliseo-kicker">{t.colKicker}</div>
+          <div className="coliseo-title">{t.colTitle}</div>
+          <div className="coliseo-sub">{t.colSub(improvement.testCases, improvement.cycles)}</div>
         </div>
         <div className="coliseo-score">
-          <div className="coliseo-score-lbl">Seguridad</div>
+          <div className="coliseo-score-lbl">{t.colSafety}</div>
           <div className="coliseo-bar-row">
             <span className="coliseo-bar-name">PRIMUM</span>
             <div className="coliseo-bar"><span style={{ width: pct(improvement.primum.safety), background: "#1D9E75" }} /></div>
@@ -179,8 +185,8 @@ export default function Coliseo() {
         </div>
       </div>
       <div className="coliseo-foot">
-        <div ref={tickerRef} className="coliseo-ticker">Preparando la arena…</div>
-        <div ref={tallyRef} className="coliseo-tally">resistidos 0</div>
+        <div ref={tickerRef} className="coliseo-ticker">{t.colPreparing}</div>
+        <div ref={tallyRef} className="coliseo-tally">{t.colResistedTally(0, 0)}</div>
       </div>
     </div>
   );

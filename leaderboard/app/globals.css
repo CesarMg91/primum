@@ -248,3 +248,29 @@ a:hover { text-decoration: underline; }
 .casemarks .dot.bad { background: var(--rose); }
 .casemarks .arrow { color: var(--muted); font-size: 11px; }
 .casetitle { font-size: 12.5px; color: var(--ink); opacity: 0.9; line-height: 1.35; }
+
+/* Language toggle (EN/ES) */
+.lang-toggle {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s, color 0.2s;
+  z-index: 10;
+}
+.lang-toggle:hover { border-color: var(--teal); }
+.lang-toggle .on { color: var(--teal); }
+.lang-toggle .sep { opacity: 0.4; font-weight: 400; }
+@media (max-width: 600px) { .lang-toggle { top: 12px; right: 12px; } }
