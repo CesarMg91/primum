@@ -1,106 +1,108 @@
-# Troubleshooting — fine-tuning MedGemma 4B → Ollama (lecciones aprendidas)
+# Troubleshooting — fine-tuning MedGemma 4B → Ollama (lessons learned)
 
-Bitácora de los problemas reales que encontramos al pasar de QLoRA a un GGUF
-corriendo en Ollama, y cómo se resolvieron. Si repites el ciclo (o lo haces con
-`medgemma-1.5-4b-it`), lee esto primero — te ahorra horas.
+> 🌐 **Language:** English · **[Español](TROUBLESHOOTING.es.md)**
 
-## El camino que SÍ funciona (resumen)
+A log of the real problems we hit going from QLoRA to a GGUF running in Ollama,
+and how they were solved. If you repeat the cycle (or do it with
+`medgemma-1.5-4b-it`), read this first — it'll save you hours.
 
-1. **Entrenar** (`train_qlora.py`) → guarda `primum-medgemma-lora` (adapters). ✅
-2. **Fusionar con peft** sobre el base **16-bit** (`merge_peft.py`, llamado por
-   `export_gguf.sh`) → `primum-medgemma-merged`. NO usar el merge de unsloth.
-3. **Extraer el modelo de texto** del merged multimodal (`make_text_model.py`,
-   llamado por `export_text_gguf.sh`) → `primum-medgemma-text` → GGUF q8_0.
-4. **Bajar** el `.gguf` + `Modelfile`, `ollama create`, benchmark con `--split test`.
+## The path that DOES work (summary)
 
-Atajo si ya tienes `primum-medgemma-merged`: corre directo `export_text_gguf.sh`.
+1. **Train** (`train_qlora.py`) → saves `primum-medgemma-lora` (adapters). ✅
+2. **Merge with peft** onto the **16-bit** base (`merge_peft.py`, called by
+   `export_gguf.sh`) → `primum-medgemma-merged`. Do NOT use the unsloth merge.
+3. **Extract the text model** from the multimodal merged one (`make_text_model.py`,
+   called by `export_text_gguf.sh`) → `primum-medgemma-text` → GGUF q8_0.
+4. **Download** the `.gguf` + `Modelfile`, `ollama create`, benchmark with `--split test`.
 
-## Gotchas (en orden de aparición)
+Shortcut if you already have `primum-medgemma-merged`: run `export_text_gguf.sh` directly.
 
-**Chat template de Gemma** exige alternancia estricta user/assistant y NO acepta
-rol `system`. Nuestros casos meten varios turnos de paciente seguidos → error
-`Conversation roles must alternate`. Fix: `normalize_messages()` en
-`train_qlora.py` (pliega system en el primer user + fusiona turnos consecutivos).
+## Gotchas (in order of appearance)
 
-**`huggingface-cli` está deprecado** → usar `hf`. Y de hecho no hace falta login:
-la variable de entorno `HF_TOKEN` basta para descargar modelos gated.
+**Gemma's chat template** requires strict user/assistant alternation and does NOT
+accept the `system` role. Our cases stack several patient turns in a row → error
+`Conversation roles must alternate`. Fix: `normalize_messages()` in
+`train_qlora.py` (folds system into the first user + merges consecutive turns).
 
-**El merge de unsloth está roto** en esta versión: `save_pretrained_gguf` Y
-`save_pretrained_merged` fallan con `# of LoRAs = 400 does not match # of saved
-modules = 0` (después de que el entrenamiento terminó y el LoRA se guardó bien).
-Fix: fusionar con `peft` directo (`merge_peft.py`).
+**`huggingface-cli` is deprecated** → use `hf`. And in fact no login is needed:
+the `HF_TOKEN` environment variable is enough to download gated models.
 
-**El adapter apunta al base 4-bit.** `adapter_config.json` tiene
-`base_model_name_or_path = ...-unsloth-bnb-4bit`. peft NO puede fusionar LoRA en
-capas 4-bit. Fix: fusionar sobre el base **16-bit** (quitar el sufijo
-`-unsloth-bnb-4bit`). Es el patrón estándar de QLoRA (entrenas en 4-bit, fusionas
-en 16-bit).
+**The unsloth merge is broken** in this version: both `save_pretrained_gguf` and
+`save_pretrained_merged` fail with `# of LoRAs = 400 does not match # of saved
+modules = 0` (after training finished and the LoRA was saved fine).
+Fix: merge with `peft` directly (`merge_peft.py`).
 
-**Disco: el container (`/`) es chico (~20 GB)** y ahí vive `/root/.cache`. El base
-16-bit (~8.6 GB) lo desborda. Fix: `export HF_HOME=/workspace/hf` — `/workspace`
-es un volumen de red enorme (TBs). Hazlo SIEMPRE en el pod.
+**The adapter points at the 4-bit base.** `adapter_config.json` has
+`base_model_name_or_path = ...-unsloth-bnb-4bit`. peft CANNOT merge a LoRA into
+4-bit layers. Fix: merge onto the **16-bit** base (strip the
+`-unsloth-bnb-4bit` suffix). This is the standard QLoRA pattern (you train in 4-bit,
+merge in 16-bit).
 
-**MedGemma es multimodal** (`Gemma3ForConditionalGeneration`). El modelo fusionado
-trae la torre de visión (437 tensores) + el texto bajo `model.language_model.model.*`
-(444 tensores). llama.cpp no mapea ese prefijo → `Can not map tensor
-'model.model.embed_tokens.weight'`. Fix: `make_text_model.py` conserva solo los
-tensores de texto, les quita el prefijo `model.language_model.` (→ `model.*`),
-tira la visión, y escribe un config `Gemma3ForCausalLM`. Eso convierte limpio.
+**Disk: the container (`/`) is small (~20 GB)** and `/root/.cache` lives there. The
+16-bit base (~8.6 GB) overflows it. Fix: `export HF_HOME=/workspace/hf` — `/workspace`
+is a huge network volume (TBs). ALWAYS do this on the pod.
 
-**Ollama no aplica un adapter safetensors sobre un base GGUF.** El plan de
-`FROM medgemma:4b` + `ADAPTER <lora safetensors>` falla (`no safetensors files
-found`): Ollama necesita base y adapter del mismo tipo. Por eso terminamos
-generando el GGUF completo del modelo afinado.
+**MedGemma is multimodal** (`Gemma3ForConditionalGeneration`). The merged model
+carries the vision tower (437 tensors) + the text under `model.language_model.model.*`
+(444 tensors). llama.cpp doesn't map that prefix → `Can not map tensor
+'model.model.embed_tokens.weight'`. Fix: `make_text_model.py` keeps only the
+text tensors, strips the `model.language_model.` prefix (→ `model.*`),
+drops the vision tower, and writes a `Gemma3ForCausalLM` config. That converts cleanly.
 
-**`convert_lora_to_gguf.py` también choca** con el config multimodal de MedGemma
-(`text_config` sin `architectures` → `NoneType not subscriptable`). Otra razón
-para ir por el GGUF del modelo de texto completo, no por el adapter.
+**Ollama won't apply a safetensors adapter on top of a GGUF base.** The plan of
+`FROM medgemma:4b` + `ADAPTER <lora safetensors>` fails (`no safetensors files
+found`): Ollama needs base and adapter of the same type. That's why we ended up
+generating the full GGUF of the fine-tuned model.
 
-## Gotchas de entorno (Windows / RunPod)
+**`convert_lora_to_gguf.py` also chokes** on MedGemma's multimodal config
+(`text_config` without `architectures` → `NoneType not subscriptable`). Another reason
+to go with the full text-model GGUF, not the adapter.
 
-- **Pegar en la terminal web de RunPod:** `Ctrl+Shift+V` (no `Ctrl+V`).
-- **La `~` (tilde) en teclado español** es difícil → usa rutas absolutas `/root`
-  en vez de `~`. (`~/.cache` = `/root/.cache`).
-- **Autocompletar nombres largos:** escribe el inicio y aprieta `Tab`.
-- **npm en Windows se come `--split`** (lo trata como config de npm). Fix: el
-  benchmark también lee `PRIMUM_SPLIT` (env var), o llama `tsx` directo sin npm.
-- **Los `.ps1` deben ser ASCII puro** — PowerShell de Windows malinterpreta
-  guiones largos (—), `¿`, y acentos UTF-8 → errores de parseo. Sin caracteres
-  especiales en scripts PowerShell.
-- **Bajar archivos del pod:** Jupyter Lab (puerto 8888) → panel izquierdo →
-  navega a `/workspace` → clic derecho en el archivo → Download. Para carpetas,
-  empácalas primero: `tar czf /workspace/x.tar.gz carpeta`.
-- **Apaga el pod (Stop) al terminar** para no gastar créditos.
+## Environment gotchas (Windows / RunPod)
 
-## Pod GPU (dev loop rápido) — disco y Ollama
+- **Pasting into the RunPod web terminal:** `Ctrl+Shift+V` (not `Ctrl+V`).
+- **The `~` (tilde) on a Spanish keyboard** is hard → use absolute paths `/root`
+  instead of `~`. (`~/.cache` = `/root/.cache`).
+- **Autocompleting long names:** type the beginning and hit `Tab`.
+- **npm on Windows eats `--split`** (it treats it as an npm config). Fix: the
+  benchmark also reads `PRIMUM_SPLIT` (env var), or call `tsx` directly without npm.
+- **`.ps1` files must be pure ASCII** — Windows PowerShell misinterprets
+  em dashes (—), `¿`, and UTF-8 accents → parse errors. No special
+  characters in PowerShell scripts.
+- **Downloading files from the pod:** Jupyter Lab (port 8888) → left panel →
+  navigate to `/workspace` → right-click the file → Download. For folders,
+  pack them first: `tar czf /workspace/x.tar.gz folder`.
+- **Stop the pod (Stop) when you're done** so you don't burn credits.
 
-Correr el harness en el pod GPU (Ollama servido por GPU) hace adversario/benchmark
-5-10x más rápido que en CPU local. Lecciones de disco (se llena fácil):
+## GPU pod (fast dev loop) — disk and Ollama
 
-- **Volumen de 80GB SIEMPRE** para el pipeline 4B. El pico (caché HF ~12GB + modelo
-  texto 8GB + gguf 4GB + modelo Ollama 4GB + checkpoints) supera 25-30GB. Un volumen
-  de 20-40GB da "disk quota exceeded" / "no space left on device".
-- **Ollama guarda en `/root/.ollama` (container chico) por defecto** → llena el container.
-  Fix: `export OLLAMA_MODELS=/workspace/ollama-models` antes de `ollama serve`.
-- **El `df -h /workspace` engaña**: muestra el disco de red (TBs), no tu cuota. Usa
-  `du -sh /workspace` para el uso real contra cuota.
-- **Container disk se llena en `pip install`** (unsloth jala torch ~5GB): `pip --no-cache-dir`
-  + `TMPDIR=/workspace/tmp` (ver runpod_bootstrap.sh).
-- **NO uses Ollama en el pod para servir el modelo** — su versión (0.30.7) NO se lleva con
-  nuestro gemma3: importar el GGUF externo falla (`failed to validate GGUF with llama-quantize`)
-  Y importar el safetensors con `--quantize` **rompe el tokenizer** (sale basura con
-  `[UNK_BYTE_0xe29681…]` = el `▁` de SentencePiece mal mapeado → genera texto roto y luego
-  `Failed to parse input`). El template jinja autogenerado tampoco parsea (`Unable to generate
+Running the harness on the GPU pod (Ollama served by the GPU) makes the adversary/benchmark
+5-10x faster than on local CPU. Disk lessons (it fills up easily):
+
+- **80GB volume ALWAYS** for the 4B pipeline. The peak (HF cache ~12GB + text model
+  8GB + gguf 4GB + Ollama model 4GB + checkpoints) exceeds 25-30GB. A 20-40GB volume
+  gives "disk quota exceeded" / "no space left on device".
+- **Ollama saves to `/root/.ollama` (the small container) by default** → fills the container.
+  Fix: `export OLLAMA_MODELS=/workspace/ollama-models` before `ollama serve`.
+- **`df -h /workspace` is misleading**: it shows the network disk (TBs), not your quota. Use
+  `du -sh /workspace` for real usage against quota.
+- **Container disk fills up during `pip install`** (unsloth pulls torch ~5GB): `pip --no-cache-dir`
+  + `TMPDIR=/workspace/tmp` (see runpod_bootstrap.sh).
+- **Do NOT use Ollama on the pod to serve the model** — its version (0.30.7) does NOT get along with
+  our gemma3: importing the external GGUF fails (`failed to validate GGUF with llama-quantize`)
+  AND importing the safetensors with `--quantize` **breaks the tokenizer** (you get garbage with
+  `[UNK_BYTE_0xe29681…]` = the SentencePiece `▁` mis-mapped → generates broken text and then
+  `Failed to parse input`). The auto-generated jinja template doesn't parse either (`Unable to generate
   parser for this template`).
-- **Fix GPU correcto: `llama-server` de llama.cpp** (`pod_serve_llama.sh`). Carga el GGUF de
-  `convert_hf_to_gguf` directo (tokenizer + template correctos), expone endpoint
-  OpenAI-compatible. El harness le apunta con `export OLLAMA_HOST=http://localhost:11434`.
-- **Alternancia de turnos en inferencia:** el template estricto de Gemma rechaza turnos
-  consecutivos del mismo rol → `gemmaNormalize()` en `models.ts` (cliente ollama) los fusiona
-  antes de enviar.
-- Limpia entre pasos: `rm -rf outputs *.gguf llama.cpp /workspace/hf primum-medgemma-merged`.
+- **Correct GPU fix: llama.cpp's `llama-server`** (`pod_serve_llama.sh`). It loads the GGUF from
+  `convert_hf_to_gguf` directly (correct tokenizer + template), exposes an
+  OpenAI-compatible endpoint. The harness points at it with `export OLLAMA_HOST=http://localhost:11434`.
+- **Turn alternation at inference:** Gemma's strict template rejects consecutive turns
+  from the same role → `gemmaNormalize()` in `models.ts` (ollama client) merges them
+  before sending.
+- Clean up between steps: `rm -rf outputs *.gguf llama.cpp /workspace/hf primum-medgemma-merged`.
 
-**Flujo GPU recomendado** (todo en el pod, volumen 80GB): `pod_allinone.sh` (Ollama solo para
-bajar el template base si hace falta; Node+deps) → entrenar (`runpod_bootstrap.sh`) →
-`build_gguf.sh` → `pod_serve_llama.sh primum-medgemma-q8_0.gguf` → en el harness
-`export OLLAMA_HOST=http://localhost:11434` y correr adversario/benchmark. Datos por git.
+**Recommended GPU flow** (everything on the pod, 80GB volume): `pod_allinone.sh` (Ollama only to
+pull the base template if needed; Node+deps) → train (`runpod_bootstrap.sh`) →
+`build_gguf.sh` → `pod_serve_llama.sh primum-medgemma-q8_0.gguf` → in the harness
+`export OLLAMA_HOST=http://localhost:11434` and run the adversary/benchmark. Data via git.

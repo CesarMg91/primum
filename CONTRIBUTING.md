@@ -1,42 +1,44 @@
-# Cómo contribuir a Primum
+# How to contribute to Primum
 
-Primum mejora con **casos clínicos reales**. La forma más valiosa de contribuir es aportar
-o revisar un caso de seguridad. Toda contribución clínica pasa por revisión antes de entrar
-al set oficial.
+> 🌐 **Language:** English · **[Español](CONTRIBUTING.es.md)**
 
-## ⚕️ Aviso
+Primum improves with **real clinical cases**. The most valuable way to contribute is to submit
+or review a safety case. Every clinical contribution goes through review before it enters
+the official set.
 
-Los casos son material de **investigación y evaluación de modelos**. No son consejo médico ni
-guía de práctica clínica.
+## ⚕️ Notice
 
-## Aportar un caso nuevo
+The cases are material for **model research and evaluation**. They are not medical advice nor
+a clinical practice guideline.
 
-1. Copia `cases/_template.yaml` a `cases/NNNN-slug.yaml` (siguiente id libre, 4 dígitos).
-2. Llénalo siguiendo [`cases/SCHEMA.md`](cases/SCHEMA.md). Requisitos no negociables:
-   - Al menos **una referencia clínica real** (GPC, NOM, guía, ficha técnica).
-   - El criterio `must_not` describe la conducta **peligrosa** que el modelo no debe tener.
-   - Español mexicano realista: fármacos del cuadro básico, unidades y vías correctas.
-3. Deja `review_status: needs_clinical_review`. Personal clínico lo cambia a `reviewed`.
-4. Valida localmente:
+## Submitting a new case
+
+1. Copy `cases/_template.yaml` to `cases/NNNN-slug.yaml` (next free id, 4 digits).
+2. Fill it out following [`cases/SCHEMA.md`](cases/SCHEMA.md). Non-negotiable requirements:
+   - At least **one real clinical reference** (GPC, NOM, guideline, drug label).
+   - The `must_not` criterion describes the **dangerous** behavior the model must not exhibit.
+   - Realistic Mexican Spanish: cuadro básico drugs, correct units and routes of administration.
+3. Leave `review_status: needs_clinical_review`. Clinical staff change it to `reviewed`.
+4. Validate locally:
    ```bash
    cd harness && npm ci && npm run validate
    ```
-5. Abre un PR. El GitHub Action vuelve a validar el esquema automáticamente.
+5. Open a PR. The GitHub Action re-validates the schema automatically.
 
-## Revisar un caso
+## Reviewing a case
 
-Si tienes formación clínica, ayuda enorme revisar casos `needs_clinical_review`: verifica que
-la referencia respalde el `must_not`, que el escenario sea plausible y que la conducta segura
-esté bien definida. Comenta en el PR o cambia el `review_status` a `reviewed` con tu aval.
+If you have clinical training, it's a huge help to review `needs_clinical_review` cases: check that
+the reference backs the `must_not`, that the scenario is plausible, and that the safe behavior
+is well defined. Comment on the PR or change the `review_status` to `reviewed` with your endorsement.
 
-## Tocar el harness
+## Working on the harness
 
-- Está en `harness/` (TypeScript). Corre `npm run typecheck` antes del PR.
-- Mantén los adaptadores de modelo detrás de la interfaz `ModelClient` en `src/models.ts`.
+- It lives in `harness/` (TypeScript). Run `npm run typecheck` before the PR.
+- Keep model adapters behind the `ModelClient` interface in `src/models.ts`.
 
-## Qué hace a un buen caso
+## What makes a good case
 
-- Prueba **un** modo de falla claro (`danger_tested`).
-- La conducta segura es defendible con la referencia citada.
-- No depende de datos que el modelo no podría tener (úsalos vía `simulated_patient_persona`
-  para el modo agéntico).
+- It tests **one** clear failure mode (`danger_tested`).
+- The safe behavior is defensible with the cited reference.
+- It does not depend on data the model couldn't have (use it via `simulated_patient_persona`
+  for the agentic mode).
