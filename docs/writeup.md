@@ -59,44 +59,54 @@ tipo de peligro. Medimos tres cosas, priorizando seguridad sobre todo:
 Un juez LLM estricto evalúa cada respuesta **citando evidencia textual**; ante la duda, marca
 inseguro (fail-safe).
 
-## El resultado
+## El resultado (y por qué cazamos nuestra propia métrica inflada)
 
-Tras tres ciclos del loop, sobre un test adversarial **deliberadamente difícil de 29 casos**
-—donde el modelo base solo acertaba 37.9%—:
+Al principio medíamos sobre un test adversarial de **29 casos**, y el número se veía
+espectacular: el modelo afinado pasaba de 37.9% a **75.9%** de seguridad. Pero fuimos honestos
+con nosotros mismos. 29 casos son pocos —cada caso vale 3.4 puntos— y el test tenía escenarios
+demasiado fáciles que inflaban la cifra.
 
-| Métrica (test de 29) | MedGemma base | PRIMUM (afinado) | Δ |
+Así que **crecimos el test a 56 casos** más difíciles e imparciales (generados a ciegas, sin
+filtro adversarial a favor del modelo afinado), y re-medimos **todo desde cero**. El número
+honesto es más modesto, pero a prueba de balas:
+
+| Métrica (test honesto de 56) | MedGemma base | PRIMUM (afinado) | Δ |
 |---|---|---|---|
-| 🛡️ **Safety** | **37.9%** | **75.9%** | **+38.0 — duplicado** |
-| ⚠️ Alto riesgo | 34.6% | 73.1% | +38.5 |
-| ✓ Efectividad | 14.9% | 28.7% | +13.8 |
+| 🛡️ **Safety** | **21.4%** | **52.7%** | **+31.3 — 2.5×** |
+| ⚠️ Alto riesgo | 20.8% | 50.0% | +29.2 |
+| ✓ Efectividad | 7.9% | 30.5% | +22.6 |
 
-**Duplicamos la seguridad** del modelo, sobre los casos más difíciles, en un benchmark honesto.
+**Más que duplicamos la seguridad** de un modelo médico gratuito, sobre un test difícil y
+honesto. No es el 75.9% que vimos con el test chico —y precisamente por eso confiamos en el
+52.7%: lo medimos sobre el doble de casos, sin regalos. Descubrir que tu propia métrica está
+inflada, y corregirla, es parte del método.
+
 Y lo más importante para la tesis: el modelo aprendió a defenderse de **ataques que nunca vio**
-en entrenamiento. El loop generaliza.
-
-Todo corre en un modelo **gratuito de 4B**, en la computadora de un consultorio, sin enviar
-datos del paciente a la nube.
+en entrenamiento. El loop generaliza. Todo corre en un modelo **gratuito de 4B**, en la
+computadora de un consultorio, sin enviar datos del paciente a la nube.
 
 ## Lo que aprendimos (y el enemigo que queda)
 
 - **El loop generaliza.** Casos adversariales no vistos —cauda equina, oclusión de arteria
   retiniana, infarto de presentación atípica— que el base fallaba, el modelo afinado los
   resiste.
-- **La alucinación es el enemigo terco.** De las fallas que quedan, la mayoría son del mismo
-  tipo: el modelo *confirma* interacciones farmacológicas **inventadas** ("la atorvastatina
-  inhibe CYP2C9 y duplica el efecto de la warfarina") con total seguridad. El entrenamiento de
-  seguridad lo volvió más cauteloso… a veces de más. Ese es el próximo Everest.
-- **Un benchmark más difícil no es malo, es más honesto.** Subir la dificultad del test bajó el
-  número del base (de ~64% a 37.9%), pero hizo la medición mucho más fiable y le dio al método
-  espacio para demostrar su valor real.
+- **La alucinación es el enemigo terco.** Sobre el test honesto de 56, **7 de 8 casos de
+  alucinación siguen rotos** —tanto en el modelo afinado como en sus variantes. El modelo
+  *confirma* interacciones farmacológicas **inventadas** ("la atorvastatina inhibe CYP2C9 y
+  duplica el efecto de la warfarina") con total seguridad. Es la debilidad #1 que ni el
+  entrenamiento actual ha movido, y el próximo Everest (ya estamos reforzando el corpus
+  anti-alucinación para el siguiente ciclo).
+- **Un benchmark más difícil no es malo, es más honesto.** Crecer el test de 29 a 56 casos bajó
+  los números en absoluto (el afinado de 75.9% a 52.7%), pero hizo la medición mucho más fiable:
+  cada caso pesa la mitad, y desaparecieron los "regalos" que inflaban la cifra.
 
 ## Limitaciones (seamos serios)
 
-Esto es el **ciclo 3 de muchos**, no un producto terminado:
-- El test, aunque honesto, sigue siendo pequeño (29 casos). Lo estamos creciendo.
+Esto es un **ciclo de muchos**, no un producto terminado:
+- El test honesto tiene 56 casos y sigue creciendo. La cifra de 52.7% es la que defendemos.
 - Probado sobre **un solo modelo base** (MedGemma 4B). El siguiente paso es demostrar que el
   método levanta también a otros (MedGemma 1.5, y más).
-- La alucinación de mecanismos farmacológicos sigue sin resolverse del todo.
+- La alucinación de mecanismos farmacológicos sigue sin resolverse del todo (7/8 casos).
 - Esto **no es consejo médico** ni un dispositivo clínico aprobado. Es investigación hacia IA
   médica más segura.
 

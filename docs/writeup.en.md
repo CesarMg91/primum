@@ -56,43 +56,53 @@ three things, prioritizing safety above all:
 A strict LLM judge scores each answer **citing textual evidence**; when in doubt, it marks unsafe
 (fail-safe).
 
-## The result
+## The result (and why we hunted down our own inflated metric)
 
-After three cycles of the loop, on a **deliberately hard 29-case adversarial test** —where the
-base model only scored 37.9%—:
+At first we measured on a **29-case** adversarial test, and the number looked spectacular: the
+fine-tuned model went from 37.9% to **75.9%** safety. But we were honest with ourselves. 29 cases
+is few —each case is worth 3.4 points— and the test had scenarios that were too easy, inflating
+the figure.
 
-| Metric (29-case test) | MedGemma base | PRIMUM (fine-tuned) | Δ |
+So we **grew the test to 56** harder, unbiased cases (generated blind, with no adversarial filter
+favoring the fine-tuned model) and re-measured **everything from scratch**. The honest number is
+more modest, but bulletproof:
+
+| Metric (honest 56-case test) | MedGemma base | PRIMUM (fine-tuned) | Δ |
 |---|---|---|---|
-| 🛡️ **Safety** | **37.9%** | **75.9%** | **+38.0 — doubled** |
-| ⚠️ High risk | 34.6% | 73.1% | +38.5 |
-| ✓ Effectiveness | 14.9% | 28.7% | +13.8 |
+| 🛡️ **Safety** | **21.4%** | **52.7%** | **+31.3 — 2.5×** |
+| ⚠️ High risk | 20.8% | 50.0% | +29.2 |
+| ✓ Effectiveness | 7.9% | 30.5% | +22.6 |
 
-**We doubled the model's safety**, on the hardest cases, in an honest benchmark. And most
-important for the thesis: the model learned to defend against **attacks it never saw** in
-training. The loop generalizes.
+**We more than doubled the safety** of a free medical model, on a hard, honest test. It's not the
+75.9% we saw with the small test —and that's exactly why we trust the 52.7%: we measured it over
+twice as many cases, with no gifts. Discovering that your own metric is inflated, and correcting
+it, is part of the method.
 
-Everything runs on a **free 4B model**, on a clinic's computer, without sending patient data to
-the cloud.
+And most important for the thesis: the model learned to defend against **attacks it never saw** in
+training. The loop generalizes. Everything runs on a **free 4B model**, on a clinic's computer,
+without sending patient data to the cloud.
 
 ## What we learned (and the enemy that remains)
 
 - **The loop generalizes.** Unseen adversarial cases —cauda equina, retinal artery occlusion,
   atypical-presentation MI— that the base model failed, the fine-tuned model resists.
-- **Hallucination is the stubborn enemy.** Of the failures that remain, most are the same type:
-  the model *confirms* **invented** drug interactions ("atorvastatin inhibits CYP2C9 and doubles
-  the effect of warfarin") with total confidence. Safety training made it more cautious… sometimes
-  too much. That's the next Everest.
-- **A harder benchmark isn't bad, it's more honest.** Raising the test's difficulty lowered the
-  base number (from ~64% to 37.9%), but made the measurement far more reliable and gave the method
-  room to prove its real value.
+- **Hallucination is the stubborn enemy.** On the honest 56-case test, **7 of 8 hallucination
+  cases are still broken** —both in the fine-tuned model and its variants. The model *confirms*
+  **invented** drug interactions ("atorvastatin inhibits CYP2C9 and doubles the effect of
+  warfarin") with total confidence. It's the #1 weakness that current training hasn't moved, and
+  the next Everest (we're already reinforcing the anti-hallucination corpus for the next cycle).
+- **A harder benchmark isn't bad, it's more honest.** Growing the test from 29 to 56 cases lowered
+  the numbers in absolute terms (the fine-tuned model from 75.9% to 52.7%), but made the
+  measurement far more reliable: each case weighs half as much, and the "gifts" that inflated the
+  figure disappeared.
 
 ## Limitations (let's be serious)
 
-This is **cycle 3 of many**, not a finished product:
-- The test, though honest, is still small (29 cases). We're growing it.
+This is **one cycle of many**, not a finished product:
+- The honest test has 56 cases and keeps growing. 52.7% is the figure we stand behind.
 - Tested on **a single base model** (MedGemma 4B). The next step is to show the method lifts
   others too (MedGemma 1.5, and more).
-- Hallucination of pharmacological mechanisms is not yet fully solved.
+- Hallucination of pharmacological mechanisms is not yet fully solved (7/8 cases).
 - This is **not medical advice** nor an approved clinical device. It's research toward safer
   medical AI.
 
