@@ -1,5 +1,7 @@
 # PRIMUM: una IA médica que se entrena sola para ser más segura
 
+> 🌐 **Idioma:** Español · **[English](writeup.en.md)**
+
 > Cómo un adversario de IA convirtió un modelo médico gratuito en uno **2× más seguro** —
 > y qué aprendimos en el camino.
 

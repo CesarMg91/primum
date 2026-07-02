@@ -1,82 +1,93 @@
 # Primum 🩺
 
-> *Primum non nocere* — "primero, no hacer daño."
+> 🌐 **Language:** English · **[Español](README.es.md)**
+
+> *Primum non nocere* — "first, do no harm."
 >
-> El primer benchmark abierto, **safety-first** y **agéntico** que mide si un modelo de lenguaje
-> —incluido uno **local y gratis** como MedGemma/Gemma— es seguro para usarse en una
-> **clínica real de habla hispana**.
+> The first open, **safety-first**, **agentic** benchmark that measures whether a language
+> model —including a **free, local** one like MedGemma/Gemma— is safe to use in a
+> **real Spanish-speaking clinic**.
 
-[![status: alpha](https://img.shields.io/badge/status-alpha-orange)](#estado)
+[![status: alpha](https://img.shields.io/badge/status-alpha-orange)](#status)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![español](https://img.shields.io/badge/idioma-es--MX-green)](#)
+[![language: es-MX](https://img.shields.io/badge/dataset-es--MX-green)](#)
 
-**🌐 [Leaderboard en vivo](https://primum-wine.vercel.app)** · **📦 [Repositorio](https://github.com/CesarMg91/primum)**
+**🌐 [Live leaderboard](https://primumbench.org)** · **📦 [Repository](https://github.com/CesarMg91/primum)**
 
 ---
 
-## Por qué existe
+## Why it exists
 
-Los benchmarks médicos actuales tienen tres huecos documentados:
+Today's medical benchmarks have three documented gaps:
 
-1. **No miden seguridad de verdad.** HealthBench (OpenAI) es el estándar, pero
-   [la crítica](https://glassboxmedicine.com/2025/05/13/healthbench-does-not-evaluate-patient-safety/)
-   es que la seguridad del paciente **no es un eje de su rúbrica** y no confronta alucinaciones.
-2. **El español latinoamericano clínico está "underexplored".** Lo dice textual
-   [PeruMedQA (2026)](https://arxiv.org/abs/2509.11517): *todos los LLMs rinden peor en español
-   latino que en ibérico*. Los benchmarks existentes son QA estático o anglocéntricos.
-3. **Los modelos locales ya compiten** (MedGemma-27b lideró PeruMedQA), pero nadie mide
-   con rigor si es **seguro** usar un modelo gratis que corre en el consultorio.
+1. **They don't really measure safety.** HealthBench (OpenAI) is the standard, but
+   [the critique](https://glassboxmedicine.com/2025/05/13/healthbench-does-not-evaluate-patient-safety/)
+   is that patient safety **is not an axis of its rubric** and it doesn't confront hallucinations.
+2. **Clinical Latin-American Spanish is "underexplored."** Stated verbatim by
+   [PeruMedQA (2026)](https://arxiv.org/abs/2509.11517): *all LLMs perform worse in Latin
+   American Spanish than in Iberian Spanish*. Existing benchmarks are static QA or Anglocentric.
+3. **Local models already compete** (MedGemma-27b led PeruMedQA), yet no one rigorously measures
+   whether it is **safe** to use a free model running in the doctor's office.
 
-Y hay una lección que ningún QA estático captura: cuando los mismos casos se evalúan de forma
-**agéntica y secuencial** (como decisión clínica real), la precisión se desploma
-—[AgentClinic, npj Digital Medicine 2026](https://www.nature.com/articles/s41746-026-02674-7)
-reporta caídas de hasta 10×.
+And there's a lesson no static QA captures: when the same cases are evaluated
+**agentically and sequentially** (like real clinical decision-making), accuracy collapses —
+[AgentClinic, npj Digital Medicine 2026](https://www.nature.com/articles/s41746-026-02674-7)
+reports drops of up to 10×.
 
-**Primum vive en esa intersección vacía:** seguridad primero + español mexicano/latino +
-evaluación agéntica + incluye modelos locales.
+**Primum lives in that empty intersection:** safety first + Mexican/Latin Spanish + agentic
+evaluation + local models included.
 
-## Qué mide
+## What it measures
 
-Cada caso prueba un **modo de falla peligroso** concreto (contraindicación, interacción,
-dosis tóxica, falta de derivación a urgencias, alucinación de un fármaco) en un escenario
-clínico realista en **español mexicano** (fármacos del cuadro básico, unidades, vías IMSS).
+Each case probes one concrete **dangerous failure mode** (contraindication, interaction,
+toxic dose, missed referral to the ER, drug hallucination) in a realistic clinical scenario in
+**Mexican Spanish** (formulary drugs, units, IMSS pathways).
 
-Reportamos dos ejes separados, siguiendo el consenso clínico (CSEDB):
+We report two separate axes, following clinical consensus (CSEDB):
 
-- **Safety Score** — % de casos sin *ninguna* violación crítica (`must_not`). Una sola basta para reprobar.
-- **Effectiveness Score** — % de criterios `must_do` / `should` satisfechos.
+- **Safety Score** — % of cases with *no* critical violation (`must_not`). A single one fails the case.
+- **Effectiveness Score** — % of `must_do` / `should` criteria satisfied.
 
-Un modelo puede ser *efectivo* y aun así *inseguro*. Primum los separa a propósito.
+A model can be *effective* and still *unsafe*. Primum separates them on purpose.
 
-## Cómo funciona
+## How it works
 
 ```
-cases/*.yaml  ──►  harness (agéntico)  ──►  modelo bajo prueba  ──►  juez (rúbrica)  ──►  results/*.json  ──►  leaderboard
+cases/*.yaml  ──►  harness (agentic)  ──►  model under test  ──►  judge (rubric)  ──►  results/*.json  ──►  leaderboard
 ```
 
-- **Modelos bajo prueba:** frontier (GPT, Claude, Gemini) y locales vía Ollama (MedGemma, Gemma).
-- **Juez:** LLM-as-judge contra la rúbrica de cada caso. Configurable — puedes usar un
-  modelo frontier *o* un Gemma local como juez (el ángulo "cero costo").
-- **Agéntico:** soporta turnos múltiples con paciente simulado, no solo pregunta-respuesta.
+- **Models under test:** frontier (GPT, Claude, Gemini) and local via Ollama (MedGemma, Gemma).
+- **Judge:** LLM-as-judge against each case's rubric. Configurable — you can use a frontier
+  model *or* a local Gemma as the judge (the "zero-cost" angle).
+- **Agentic:** supports multi-turn exchanges with a simulated patient, not just Q&A.
 
-## Resultados preliminares
+## The self-improvement loop
 
-Evaluación con **Claude Opus 4.8 como juez** sobre casos de seguridad en español mexicano:
+Primum doesn't just measure — it **closes the gap**. An AI adversary generates the cases that
+break the local model, a frontier model produces "gold" responses verified by a judge panel,
+and the local model is **fine-tuned with QLoRA** on that corpus. The cycle repeats.
 
-| Modelo | Tipo | Safety |
+Result (honest 56-case adversarial test, Claude Opus 4.8 as judge): MedGemma 4B went from
+**21.4%** safety (base) to **~53%** (fine-tuned) — more than double, and improving each cycle.
+
+## Preliminary results
+
+Evaluation with **Claude Opus 4.8 as judge** on Mexican-Spanish safety cases:
+
+| Model | Type | Safety |
 |---|---|---|
-| Claude Opus 4.8 / Sonnet 4.6 | frontera | 100% |
+| Claude Opus 4.8 / Sonnet 4.6 | frontier | 100% |
 | Gemma 4 (e4b) | local | 94.7% |
-| Claude Haiku 4.5 | frontera | 92% |
-| **MedGemma 4B** | **local (médico)** | **56%** |
+| Claude Haiku 4.5 | frontier | 92% |
+| **MedGemma 4B** | **local (medical)** | **56%** |
 
-Dos hallazgos:
-- Los modelos de **frontera** son muy seguros; los **locales pequeños**, no necesariamente.
-- **Contraintuitivo:** el modelo *afinado para medicina* (MedGemma) resultó **mucho menos seguro**
-  que el *general* más nuevo (Gemma 4) — optimizó conocimiento clínico, no alineación de seguridad.
+Two findings:
+- **Frontier** models are very safe; small **local** ones are not necessarily.
+- **Counterintuitive:** the model *fine-tuned for medicine* (MedGemma) turned out **much less safe**
+  than the newer *general* one (Gemma 4) — it optimized clinical knowledge, not safety alignment.
 
-> Cifras preliminares (los modelos se corrieron sobre distintos subconjuntos durante el desarrollo).
-> El leaderboard refleja los resultados vigentes.
+> Preliminary figures (models were run on different subsets during development).
+> The leaderboard reflects the current results.
 
 ## Quickstart
 
@@ -86,46 +97,45 @@ npm install
 copy .env.example .env
 ```
 
-Edita `.env` con tus llaves. Para correr un modelo local primero levanta Ollama:
+Edit `.env` with your keys. To run a local model, first start Ollama:
 
 ```powershell
 ollama pull medgemma
 ollama serve
 ```
 
-Corre el benchmark:
+Run the benchmark:
 
 ```powershell
 npm run bench -- gemini:gemini-3.5-flash gemini:gemini-3.5-flash
 npm run bench -- openai:gpt-5.5 anthropic:claude-opus-4-8
-npm run bench -- ollama:medgemma ollama:gemma
+npm run bench -- ollama:medgemma anthropic:claude-opus-4-8
 ```
 
-Los resultados quedan en `results/<modelo>-<fecha>.json` y alimentan el leaderboard.
+Results land in `results/<model>-<date>.json` and feed the leaderboard.
 
-## Desplegar el leaderboard (Vercel)
+## Deploy the leaderboard (Vercel)
 
-El leaderboard es una app Next.js en `leaderboard/`. Para publicarlo:
+The leaderboard is a Next.js app in `leaderboard/`. To publish it:
 
-1. Sube este repo a GitHub.
-2. En [Vercel](https://vercel.com): **Add New → Project** → importa el repo →
+1. Push this repo to GitHub.
+2. On [Vercel](https://vercel.com): **Add New → Project** → import the repo →
    **Root Directory: `leaderboard`** → **Deploy**.
 
-Los datos vienen de `leaderboard/data/leaderboard.json`, que se regenera con
-`npm run aggregate` (en `harness/`) y se versiona en git.
+Data comes from `leaderboard/data/leaderboard.json`, regenerated with `npm run aggregate`
+(in `harness/`) and versioned in git.
 
-## Estado
+## Status
 
-**Alpha.** Los casos semilla en `cases/` son **ejemplos de canon de seguridad** marcados
-`review_status: needs_clinical_review` — sirven para demostrar el formato y que el harness
-corra end-to-end. **Los casos definitivos los valida y aporta personal clínico.**
+**Alpha.** Cases go through **clinical review** before entering the official set
+(`review_status: reviewed`). The corpus grows each cycle of the adversarial loop.
 
-## Cómo contribuir un caso
+## How to contribute a case
 
-Copia `cases/_template.yaml`, llénalo y haz un PR. Cada caso necesita una **referencia clínica**
-(guía, NOM, GPC) y pasa por revisión clínica antes de entrar al set oficial. Ver
+Copy `cases/_template.yaml`, fill it in, and open a PR. Each case needs a **clinical reference**
+(guideline, NOM, GPC) and passes clinical review before entering the official set. See
 [`cases/SCHEMA.md`](cases/SCHEMA.md).
 
-## Licencia
+## License
 
-MIT para el código. Los casos clínicos se publican bajo CC-BY-4.0 (atribución).
+MIT for the code. Clinical cases are published under CC-BY-4.0 (attribution).
