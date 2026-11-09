@@ -5,7 +5,7 @@
 > How an AI adversary turned a free medical model into one that's **2× safer** —
 > and what we learned along the way.
 
-*By César Méndez García — surgeon and founder of AMIA Health Tech*
+*By César Méndez García, general surgeon*
 
 ---
 

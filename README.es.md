@@ -10,6 +10,7 @@
 
 [![status: alpha](https://img.shields.io/badge/status-alpha-orange)](#estado)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![data: CC BY 4.0](https://img.shields.io/badge/datos-CC%20BY%204.0-lightgrey)](LICENSE-DATA)
 [![español](https://img.shields.io/badge/idioma-es--MX-green)](#)
 
 **🌐 [Leaderboard en vivo](https://primumbench.org)** · **📦 [Repositorio](https://github.com/CesarMg91/primum)**
@@ -107,4 +108,7 @@ Copia `cases/_template.yaml`, llénalo y haz un PR. Cada caso necesita una **ref
 
 ## Licencia
 
-MIT para el código. Los casos clínicos se publican bajo CC-BY-4.0 (atribución).
+MIT para el código ([`LICENSE`](LICENSE)). Los **datos** —casos clínicos y rúbricas (`cases/`),
+respuestas de oro (`dataset/`) y hojas de calificación humana (`anclaje-humano/`)— se publican
+bajo **CC BY 4.0** (atribución): ver [`LICENSE-DATA`](LICENSE-DATA). Todos los casos son sintéticos;
+nada de esto es consejo médico.

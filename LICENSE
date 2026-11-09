@@ -22,6 +22,7 @@ SOFTWARE.
 
 ---
 
-NOTE: The clinical cases in the `cases/` directory are released under
-CC-BY-4.0, not MIT. They are provided for research and evaluation purposes
+NOTE: The clinical cases in the `cases/` directory, the gold responses in
+`dataset/` and the human rating sheets in `anclaje-humano/` are released under
+CC BY 4.0, not MIT. See LICENSE-DATA. They are provided for research and evaluation purposes
 only and do NOT constitute medical advice.

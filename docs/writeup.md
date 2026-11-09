@@ -5,7 +5,7 @@
 > Cómo un adversario de IA convirtió un modelo médico gratuito en uno **2× más seguro** —
 > y qué aprendimos en el camino.
 
-*Por César Méndez García — cirujano y fundador de AMIA Health Tech*
+*Por César Méndez García, cirujano general*
 
 ---
 
