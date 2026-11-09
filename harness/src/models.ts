@@ -1,8 +1,10 @@
-import type { ChatMessage, ModelClient } from "./types";
+import { execFileSync } from "node:child_process";
+import type { ChatMessage, ModelClient, TokenUsage } from "./types";
 
 /**
  * Parse a model spec into provider + model.
- * Accepts "provider:model" (e.g. "ollama:medgemma", "anthropic:claude-sonnet-4-6")
+ * Accepts "provider:model" (e.g. "ollama:medgemma", "anthropic:claude-sonnet-4-6",
+ * "vertex:gemini-3.1-pro-preview" for Gemini on Vertex AI with gcloud auth)
  * or a bare name whose provider is inferred (gpt* -> openai, claude* -> anthropic,
  * gemini* -> gemini).
  */
@@ -196,18 +198,50 @@ function anthropic(id: string, model: string): ModelClient {
 }
 
 // --- Google Gemini ---
+const emptyUsage = (): TokenUsage => ({
+  calls: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  thinkingTokens: 0,
+  cachedTokens: 0,
+});
+
+/** Add a Gemini `usageMetadata` block to a running total. */
+function addGeminiUsage(total: TokenUsage, meta: any): void {
+  total.calls += 1;
+  total.inputTokens += meta?.promptTokenCount ?? 0;
+  total.outputTokens += meta?.candidatesTokenCount ?? 0;
+  total.thinkingTokens += meta?.thoughtsTokenCount ?? 0;
+  total.cachedTokens += meta?.cachedContentTokenCount ?? 0;
+}
+
+/** Same request body for AI Studio and Vertex (both speak generateContent). */
+function geminiBody(messages: ChatMessage[], temperature: number | null): any {
+  const { system, rest } = splitSystem(messages);
+  const contents = rest.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+  const body: any = { contents };
+  if (temperature !== null) body.generationConfig = { temperature };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+  return body;
+}
+
+const geminiText = (data: any): string =>
+  (data.candidates?.[0]?.content?.parts ?? [])
+    .filter((p: any) => !p.thought)
+    .map((p: any) => p.text ?? "")
+    .join("");
+
 function gemini(id: string, model: string): ModelClient {
   const apiKey = requireEnv("GOOGLE_API_KEY");
+  const usage = emptyUsage();
   return {
     id,
+    usage,
     async complete(messages) {
-      const { system, rest } = splitSystem(messages);
-      const contents = rest.map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
-      const body: any = { contents, generationConfig: { temperature: 0 } };
-      if (system) body.systemInstruction = { parts: [{ text: system }] };
+      const body = geminiBody(messages, 0);
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const res = await fetchWithRetry(url, {
         method: "POST",
@@ -216,9 +250,69 @@ function gemini(id: string, model: string): ModelClient {
       }, id);
       if (!res.ok) throw new Error(`${id}: ${res.status} ${await res.text()}`);
       const data: any = await res.json();
-      return (data.candidates?.[0]?.content?.parts ?? [])
-        .map((p: any) => p.text ?? "")
-        .join("");
+      addGeminiUsage(usage, data.usageMetadata);
+      return geminiText(data);
+    },
+  };
+}
+
+// --- Google Gemini on Vertex AI (OAuth token from gcloud, no API key on disk) ---
+// Shared by every Vertex client of the process, so creating one client per case is cheap.
+let vertexCachedToken: { value: string; at: number } | null = null;
+
+function vertexToken(label: string): string {
+  const fixed = process.env.VERTEX_ACCESS_TOKEN;
+  if (fixed) return fixed;
+  if (vertexCachedToken && Date.now() - vertexCachedToken.at < 45 * 60_000) return vertexCachedToken.value;
+  const args = ["auth", "print-access-token"];
+  if (process.env.VERTEX_ACCOUNT) args.push(`--account=${process.env.VERTEX_ACCOUNT}`);
+  const value = execFileSync("gcloud", args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: process.platform === "win32", // gcloud is a .cmd on Windows
+  }).trim();
+  if (!value) throw new Error(`${label}: gcloud no devolvió token.`);
+  vertexCachedToken = { value, at: Date.now() };
+  return value;
+}
+
+/**
+ * Auth: VERTEX_ACCESS_TOKEN if set; otherwise `gcloud auth print-access-token`
+ * with VERTEX_ACCOUNT (if set). The token lives only in memory and is refreshed
+ * every 45 min. VERTEX_PROJECT is required on purpose: never fall back to
+ * whatever project gcloud happens to have active. VERTEX_LOCATION defaults to
+ * `global` (Gemini 3.x answers only there).
+ *
+ * Temperature is left at the provider default: Google advises against lowering
+ * it on Gemini 3.x (reasoning models), and the Claude judge also runs with the
+ * default (Opus 4.8 rejects `temperature`).
+ */
+function vertexGemini(id: string, model: string): ModelClient {
+  const project = requireEnv("VERTEX_PROJECT");
+  const location = process.env.VERTEX_LOCATION ?? "global";
+  const host = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
+  const url = `https://${host}/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:generateContent`;
+  const usage = emptyUsage();
+  const getToken = () => vertexToken(id);
+
+  return {
+    id,
+    usage,
+    async complete(messages) {
+      const res = await fetchWithRetry(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(geminiBody(messages, null)),
+      }, id);
+      if (!res.ok) throw new Error(`${id}: ${res.status} ${await res.text()}`);
+      const data: any = await res.json();
+      addGeminiUsage(usage, data.usageMetadata);
+      const text = geminiText(data);
+      if (!text) {
+        const reason = data.candidates?.[0]?.finishReason ?? data.promptFeedback?.blockReason ?? "?";
+        throw new Error(`${id}: respuesta vacía (finishReason ${reason}).`);
+      }
+      return text;
     },
   };
 }
@@ -239,6 +333,8 @@ export function createClient(spec: string): ModelClient {
     case "gemini":
     case "google":
       return gemini(`gemini:${model}`, model);
+    case "vertex":
+      return vertexGemini(`vertex:${model}`, model);
     case "ollama": {
       const host = process.env.OLLAMA_HOST ?? "http://localhost:11434";
       // Cap output so small local models can't loop forever (the usual cause of "stuck").

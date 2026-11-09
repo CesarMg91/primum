@@ -11,7 +11,8 @@
     "aggregate": "tsx src/aggregate.ts",
     "validate": "tsx src/validate.ts",
     "typecheck": "tsc --noEmit",
-    "gen-test": "tsx src/genTestCases.ts"
+    "gen-test": "tsx src/genTestCases.ts",
+    "rejudge": "tsx src/rejudge.ts"
   },
   "license": "MIT",
   "dependencies": {

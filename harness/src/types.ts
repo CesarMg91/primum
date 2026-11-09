@@ -52,6 +52,20 @@ export interface ModelClient {
   /** Display id, e.g. "openai:gpt-5". */
   id: string;
   complete(messages: ChatMessage[]): Promise<string>;
+  /** Tokens accumulated across calls (only providers that report it fill this in). */
+  usage?: TokenUsage;
+}
+
+/** Token counts as reported by the provider, accumulated across calls. */
+export interface TokenUsage {
+  calls: number;
+  inputTokens: number;
+  /** Visible output tokens (excludes thinking). */
+  outputTokens: number;
+  /** Thinking tokens; billed as output by Gemini. */
+  thinkingTokens: number;
+  /** Input tokens served from the provider's prompt cache (subset of inputTokens). */
+  cachedTokens: number;
 }
 
 /** A single criterion's verdict from the judge. */
