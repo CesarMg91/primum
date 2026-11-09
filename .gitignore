@@ -43,3 +43,7 @@ Thumbs.db
 # generated Ollama modelfiles (local artifacts)
 training/Modelfile.adapter
 training/Modelfile.local
+
+# anclaje humano: la clave de desciframiento no se sube hasta terminar de calificar
+# (se regenera igual con `node anclaje-humano/generar_hoja.mjs`, semilla fija)
+anclaje-humano/clave/

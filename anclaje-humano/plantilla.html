@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PRIMUM · Calificación a ciegas</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e3e2dc;
+    --accent: #0f766e; --accent-soft: #e6f3f1;
+    --bad: #b42318; --bad-soft: #fdecea; --ok: #1f7a3a; --ok-soft: #e8f5ec; --doubt: #9a6700; --doubt-soft: #fff6dd;
+    --pac: #eef2f7; --asis: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --panel: #1d1d1b; --ink: #ecebe6; --muted: #a3a29b; --line: #34332f;
+      --accent: #5ec4b6; --accent-soft: #17302d;
+      --bad: #ff8a80; --bad-soft: #3a1d1b; --ok: #7fd49a; --ok-soft: #17301f; --doubt: #f2c14e; --doubt-soft: #352c14;
+      --pac: #232a33; --asis: #1d1d1b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  header label { font-size: 14px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  input[type=text], select, textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .barra { flex: 1 1 200px; min-width: 160px; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .barra > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+  .progreso { font-size: 14px; color: var(--muted); white-space: nowrap; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 7px 12px; }
+  button:hover { border-color: var(--accent); }
+  button.prim { background: var(--accent); color: #fff; border-color: var(--accent); }
+  @media (prefers-color-scheme: dark) { button.prim { color: #0d1f1d; } }
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 0; min-height: calc(100vh - 60px); }
+  nav { border-right: 1px solid var(--line); padding: 12px; overflow-y: auto; max-height: calc(100vh - 60px); position: sticky; top: 60px; }
+  nav h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+  nav .rejilla { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  nav button { padding: 4px 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+  nav button.hecho { background: var(--accent-soft); border-color: var(--accent-soft); }
+  nav button.dudoso { background: var(--doubt-soft); border-color: var(--doubt-soft); }
+  nav button.actual { outline: 2px solid var(--accent); outline-offset: 1px; }
+  main { padding: 20px 16px 120px; max-width: 860px; width: 100%; margin: 0 auto; }
+  .aviso { background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; font-size: 14px; margin-bottom: 16px; }
+  .cab { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 8px; }
+  .cab .id { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cab .meta { color: var(--muted); font-size: 14px; }
+  h2 { font-size: 20px; margin: 0 0 12px; }
+  .tarjeta { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+  .tarjeta h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .contexto { white-space: pre-wrap; }
+  .turno { border-radius: 12px; padding: 10px 14px; margin: 10px 0; border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .turno.Paciente { background: var(--pac); margin-right: 12%; }
+  .turno.Asistente { background: var(--asis); margin-left: 4%; }
+  .turno b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 4px; }
+  .criterio { border: 2px solid var(--accent); }
+  .criterio p { margin: 0 0 12px; font-weight: 600; }
+  .opciones { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opciones button { flex: 1 1 140px; padding: 10px; font-weight: 600; }
+  .opciones button.sel-violo { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+  .opciones button.sel-no_violo { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+  .opciones button.sel-dudoso { background: var(--doubt-soft); border-color: var(--doubt); color: var(--doubt); }
+  textarea { width: 100%; margin-top: 10px; min-height: 56px; resize: vertical; }
+  .pie { position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; z-index: 5; }
+  .pie .grupo { display: flex; gap: 8px; flex-wrap: wrap; }
+  .atajos { font-size: 13px; color: var(--muted); }
+  .oculto { display: none !important; }
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; }
+    nav { position: static; max-height: 150px; border-right: 0; border-bottom: 1px solid var(--line); }
+    nav .rejilla { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+    .turno.Paciente, .turno.Asistente { margin-left: 0; margin-right: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>PRIMUM · Calificación a ciegas</h1>
+  <label>Calificador <input id="calificador" type="text" placeholder="tu nombre" size="12" autocomplete="off"></label>
+  <label>Conjunto
+    <select id="modo">
+      <option value="todas">Todas (112)</option>
+      <option value="colega">Subconjunto del colega (20)</option>
+    </select>
+  </label>
+  <div class="barra" aria-hidden="true"><div id="barra"></div></div>
+  <span class="progreso" id="progreso"></span>
+</header>
+
+<div class="layout">
+  <nav id="indice" aria-label="Respuestas"></nav>
+  <main>
+    <div class="aviso" id="aviso">
+      Lee la conversación completa y marca si el <b>Asistente</b> violó el criterio en <b>cualquier</b> turno.
+      No sabes qué modelo respondió ni qué dijo el juez, a propósito. Si no estás seguro, marca «Dudoso» y anota por qué.
+      Tus respuestas se guardan solas en este navegador; al final usa <b>Exportar CSV</b>.
+      Atajos: <b>1</b> violó · <b>2</b> no violó · <b>3</b> dudoso · <b>←</b>/<b>→</b> anterior/siguiente.
+    </div>
+    <div id="vista"></div>
+  </main>
+</div>
+
+<div class="pie">
+  <div class="grupo">
+    <button id="ant">← Anterior</button>
+    <button id="sig" class="prim">Siguiente →</button>
+    <button id="pendiente">Ir a la siguiente pendiente</button>
+  </div>
+  <div class="grupo">
+    <button id="exportar" class="prim">Exportar CSV</button>
+    <button id="importar">Importar CSV</button>
+    <input id="archivo" type="file" accept=".csv,text/csv" class="oculto">
+  </div>
+</div>
+
+<script id="datos" type="application/json">/*__DATOS__*/null</script>
+<script>
+(function () {
+  "use strict";
+  var DATOS = JSON.parse(document.getElementById("datos").textContent);
+  var ITEMS = DATOS.items;
+  var CLAVE = "primum-anclaje-v1";
+  var ETQ = { violo: "Violó", no_violo: "No violó", dudoso: "Dudoso" };
+
+  function leer(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
+  function guardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento: el CSV sigue funcionando */ } }
+
+  var ui = leer(CLAVE + ":ui", { calificador: "", modo: "todas", actual: 0 });
+  var resp = {};
+  function claveResp() { return CLAVE + ":resp:" + (ui.calificador || "anonimo").trim().toLowerCase(); }
+  function cargarResp() { resp = leer(claveResp(), {}); }
+  function guardarTodo() { guardar(CLAVE + ":ui", ui); guardar(claveResp(), resp); }
+
+  function lista() { return ui.modo === "colega" ? ITEMS.filter(function (x) { return x.colega; }) : ITEMS; }
+  function estadoItem(x) {
+    var n = 0, d = false;
+    x.criterios.forEach(function (k) { var r = resp[k.uid]; if (r && r.cal) { n++; if (r.cal === "dudoso") d = true; } });
+    return n === x.criterios.length ? (d ? "dudoso" : "hecho") : "";
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  var $ = function (id) { return document.getElementById(id); };
+  $("calificador").value = ui.calificador;
+  $("modo").options[0].textContent = "Todas (" + DATOS.meta.nItems + ")";
+  $("modo").options[1].textContent = "Subconjunto del colega (" + DATOS.meta.nColega + ")";
+  $("modo").value = ui.modo;
+  cargarResp();
+
+  function pintarIndice() {
+    var L = lista(), html = "", bloque = null;
+    L.forEach(function (x, i) {
+      if (x.bloque !== bloque && ui.modo === "todas") {
+        if (bloque !== null) html += "</div>";
+        bloque = x.bloque;
+        html += "<h3>Bloque " + bloque + "</h3><div class=\"rejilla\">";
+      } else if (i === 0) html += "<h3>Colega</h3><div class=\"rejilla\">";
+      var cls = estadoItem(x) + (i === ui.actual ? " actual" : "");
+      html += "<button data-i=\"" + i + "\" class=\"" + cls + "\" title=\"" + esc(x.titulo) + "\">" + x.item.slice(1) + "</button>";
+    });
+    html += "</div>";
+    $("indice").innerHTML = html;
+    var hechos = L.filter(function (x) { return estadoItem(x); }).length;
+    $("progreso").textContent = hechos + " de " + L.length + " calificadas";
+    $("barra").style.width = (100 * hechos / L.length) + "%";
+  }
+
+  function pintar() {
+    var L = lista();
+    if (ui.actual >= L.length) ui.actual = L.length - 1;
+    if (ui.actual < 0) ui.actual = 0;
+    var x = L[ui.actual];
+    var h = "<div class=\"cab\"><span class=\"id\">" + x.item + "</span><span class=\"meta\">Caso " + esc(x.caso) +
+      " · " + esc(x.especialidad || "") + (ui.modo === "todas" ? " · bloque " + x.bloque : "") +
+      " · " + (ui.actual + 1) + " de " + L.length + "</span></div>";
+    h += "<h2>" + esc(x.titulo) + "</h2>";
+    h += "<div class=\"tarjeta\"><h4>Contexto del paciente (no lo ve el asistente)</h4><div class=\"contexto\">" + esc(x.contexto) + "</div></div>";
+    h += "<div class=\"tarjeta\"><h4>Lo que vas a calificar (abajo marcas)</h4>" +
+      x.criterios.map(function (k) { return "<div>" + esc(k.texto) + "</div>"; }).join("") + "</div>";
+    h += "<div class=\"tarjeta\"><h4>Conversación</h4>";
+    x.turnos.forEach(function (t) { h += "<div class=\"turno " + t.quien + "\"><b>" + t.quien + "</b>" + esc(t.texto) + "</div>"; });
+    h += "</div>";
+    x.criterios.forEach(function (k) {
+      var r = resp[k.uid] || {};
+      h += "<div class=\"tarjeta criterio\"><h4>Criterio que NO debe violar</h4><p>" + esc(k.texto) + "</p><div class=\"opciones\">";
+      ["violo", "no_violo", "dudoso"].forEach(function (v, j) {
+        h += "<button data-uid=\"" + k.uid + "\" data-v=\"" + v + "\" class=\"" + (r.cal === v ? "sel-" + v : "") + "\">" + (j + 1) + " · " + ETQ[v] + "</button>";
+      });
+      h += "</div><textarea data-nota=\"" + k.uid + "\" placeholder=\"Nota (opcional; obligatoria si es dudoso): qué turno, qué frase…\">" + esc(r.nota || "") + "</textarea></div>";
+    });
+    $("vista").innerHTML = h;
+    pintarIndice();
+    guardarTodo();
+  }
+
+  function marcar(uid, v) {
+    var r = resp[uid] || {};
+    r.cal = v; r.t = new Date().toISOString();
+    resp[uid] = r;
+    guardarTodo();
+    pintar();
+  }
+  function mover(d) { ui.actual += d; pintar(); window.scrollTo(0, 0); }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.uid) marcar(b.dataset.uid, b.dataset.v);
+    else if (b.dataset.i) { ui.actual = +b.dataset.i; pintar(); window.scrollTo(0, 0); }
+  });
+  document.addEventListener("input", function (e) {
+    var uid = e.target.dataset && e.target.dataset.nota;
+    if (!uid) return;
+    var r = resp[uid] || {};
+    r.nota = e.target.value;
+    resp[uid] = r;
+    guardarTodo();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+    var x = lista()[ui.actual];
+    if (["1", "2", "3"].indexOf(e.key) >= 0 && x.criterios.length === 1) marcar(x.criterios[0].uid, ["violo", "no_violo", "dudoso"][+e.key - 1]);
+    else if (e.key === "ArrowRight") mover(1);
+    else if (e.key === "ArrowLeft") mover(-1);
+  });
+  $("ant").onclick = function () { mover(-1); };
+  $("sig").onclick = function () { mover(1); };
+  $("pendiente").onclick = function () {
+    var L = lista();
+    for (var k = 1; k <= L.length; k++) { var i = (ui.actual + k) % L.length; if (!estadoItem(L[i])) { ui.actual = i; pintar(); window.scrollTo(0, 0); return; } }
+    alert("No queda ninguna pendiente en este conjunto. Ahora: Exportar CSV.");
+  };
+  $("calificador").onchange = function () { ui.calificador = this.value.trim(); cargarResp(); pintar(); };
+  $("modo").onchange = function () { ui.modo = this.value; ui.actual = 0; pintar(); };
+
+  function csvCampo(s) { s = s == null ? "" : String(s); return /[",\r\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s; }
+  $("exportar").onclick = function () {
+    if (!ui.calificador) { alert("Escribe tu nombre en «Calificador» antes de exportar."); $("calificador").focus(); return; }
+    var filas = [["calificador", "item", "criterio_uid", "calificacion", "nota", "fecha"]];
+    ITEMS.forEach(function (x) {
+      x.criterios.forEach(function (k) {
+        var r = resp[k.uid];
+        if (r && r.cal) filas.push([ui.calificador, x.item, k.uid, r.cal, r.nota || "", r.t || ""]);
+      });
+    });
+    var txt = "﻿" + filas.map(function (f) { return f.map(csvCampo).join(","); }).join("\r\n") + "\r\n";
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([txt], { type: "text/csv;charset=utf-8" }));
+    a.download = "calificaciones-" + ui.calificador.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  function leerCsv(t) {
+    t = t.replace(/^﻿/, "");
+    var filas = [], f = [], c = "", q = false;
+    for (var i = 0; i < t.length; i++) {
+      var ch = t[i];
+      if (q) { if (ch === "\"") { if (t[i + 1] === "\"") { c += "\""; i++; } else q = false; } else c += ch; }
+      else if (ch === "\"") q = true;
+      else if (ch === ",") { f.push(c); c = ""; }
+      else if (ch === "\n" || ch === "\r") { if (ch === "\r" && t[i + 1] === "\n") i++; f.push(c); c = ""; filas.push(f); f = []; }
+      else c += ch;
+    }
+    if (c || f.length) { f.push(c); filas.push(f); }
+    var cab = filas.shift().map(function (h) { return h.trim().toLowerCase(); });
+    return filas.filter(function (r) { return r.length > 1; }).map(function (r) { var o = {}; cab.forEach(function (h, j) { o[h] = (r[j] || "").trim(); }); return o; });
+  }
+  $("importar").onclick = function () { $("archivo").click(); };
+  $("archivo").onchange = function () {
+    var file = this.files[0]; if (!file) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var filas = leerCsv(rd.result), n = 0;
+      if (filas.length && filas[0].calificador && !ui.calificador) { ui.calificador = filas[0].calificador; $("calificador").value = ui.calificador; cargarResp(); }
+      filas.forEach(function (r) {
+        var v = (r.calificacion || "").toLowerCase().replace("ó", "o").replace(/\s+/g, "_");
+        if (r.criterio_uid && ETQ[v]) { resp[r.criterio_uid] = { cal: v, nota: r.nota || "", t: r.fecha || "" }; n++; }
+      });
+      guardarTodo(); pintar();
+      alert("Importadas " + n + " calificaciones.");
+    };
+    rd.readAsText(file, "utf-8");
+    this.value = "";
+  };
+
+  pintar();
+})();
+</script>
+</body>
+</html>
