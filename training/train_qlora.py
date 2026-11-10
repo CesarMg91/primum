@@ -27,8 +27,10 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
+from datetime import datetime, timezone
 
 # ---- config defaults -------------------------------------------------------
 # unsloth ships a pre-quantized MedGemma; fall back to the gated Google repo.
@@ -56,18 +58,34 @@ def parse_args():
     p.add_argument("--no-gguf", action="store_true", help="skip GGUF export")
     p.add_argument("--split-file", default="../cases/split.json",
                    help="restrict training to the train ids in this split (anti-leakage)")
+    p.add_argument("--allow-no-split", action="store_true",
+                   help="train on ALL gold even without a split file (never for benchmark results)")
     return p.parse_args()
 
 
-def load_examples(path, split_file=None):
-    """Read gold.jsonl -> list of {'messages': [...]}. If split_file is given,
-    keep ONLY gold whose caseId is in the train split — so a re-shuffled split
-    never leaks held-out test cases into training."""
+def _sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_examples(path, split_file=None, allow_no_split=False):
+    """Read gold.jsonl -> (rows, manifest). Keeps ONLY gold whose caseId is in
+    the train split, so a re-shuffled split never leaks held-out test cases into
+    training. Without the split file it refuses to run (a silent fallback is how
+    test cases could slip into training), unless allow_no_split is set."""
     train_ids = None
     if split_file and os.path.exists(split_file):
         train_ids = set(json.load(open(split_file))["train"])
         print(f"[primum] restricting to {len(train_ids)} train ids from {split_file}")
-    rows, skipped = [], 0
+    elif not allow_no_split:
+        raise SystemExit(
+            f"[primum] no split file at {split_file!r}: refusing to train, test cases could leak in. "
+            "Clone the whole repo (RUNBOOK option A) or pass --allow-no-split for non-benchmark runs."
+        )
+    rows, skipped, used_ids, skipped_ids = [], 0, [], []
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -76,15 +94,27 @@ def load_examples(path, split_file=None):
             obj = json.loads(line)
             if train_ids is not None and obj.get("caseId") not in train_ids:
                 skipped += 1
+                skipped_ids.append(obj.get("caseId"))
                 continue
             msgs = obj["messages"]
             if msgs and msgs[-1]["role"] == "assistant":
                 rows.append({"messages": msgs})
+                used_ids.append(obj.get("caseId"))
     if skipped:
         print(f"[primum] skipped {skipped} gold examples not in the train split")
     if not rows:
         raise SystemExit(f"No usable examples in {path}")
-    return rows
+    manifest = {
+        "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "gold_file": path,
+        "gold_sha256": _sha256(path),
+        "split_file": split_file if train_ids is not None else None,
+        "split_sha256": _sha256(split_file) if train_ids is not None else None,
+        "n_used": len(rows),
+        "used_case_ids": used_ids,
+        "skipped_case_ids": skipped_ids,
+    }
+    return rows, manifest
 
 
 def normalize_messages(messages):
@@ -117,6 +147,13 @@ def normalize_messages(messages):
 
 def main():
     args = parse_args()
+    # Data first: fail fast (before downloading the model) if the split is missing.
+    rows, manifest = load_examples(args.data, args.split_file, args.allow_no_split)
+    manifest["args"] = vars(args)
+    with open(f"{args.out}-data-manifest.json", "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
+    print(f"[primum] data manifest -> {args.out}-data-manifest.json (keep it with the results)")
+
     from unsloth import FastModel
     from unsloth.chat_templates import train_on_responses_only
     from datasets import Dataset
@@ -142,7 +179,6 @@ def main():
         random_state=3407,
     )
 
-    rows = load_examples(args.data, args.split_file)
     print(f"[primum] {len(rows)} gold examples (train split)")
 
     # Render each conversation with the model's chat template. Try system-as-is;
