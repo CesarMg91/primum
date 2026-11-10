@@ -80,8 +80,9 @@
   <label>Calificador <input id="calificador" type="text" placeholder="tu nombre" size="12" autocomplete="off"></label>
   <label>Conjunto
     <select id="modo">
-      <option value="todas">Todas (112)</option>
+      <option value="muestra" selected>Muestra de César (40)</option>
       <option value="colega">Subconjunto del colega (20)</option>
+      <option value="todas">Todas (112)</option>
     </select>
   </label>
   <div class="barra" aria-hidden="true"><div id="barra"></div></div>
@@ -95,6 +96,7 @@
       Lee la conversación completa y marca si el <b>Asistente</b> violó el criterio en <b>cualquier</b> turno.
       No sabes qué modelo respondió ni qué dijo el juez, a propósito. Si no estás seguro, marca «Dudoso» y anota por qué.
       Tus respuestas se guardan solas en este navegador; al final usa <b>Exportar CSV</b>.
+      En «Conjunto», César califica la <b>Muestra de César</b> y el colega su <b>Subconjunto</b>; cambiar de conjunto no borra nada.
       Atajos: <b>1</b> violó · <b>2</b> no violó · <b>3</b> dudoso · <b>←</b>/<b>→</b> anterior/siguiente.
     </div>
     <div id="vista"></div>
@@ -126,13 +128,38 @@
   function leer(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
   function guardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento: el CSV sigue funcionando */ } }
 
-  var ui = leer(CLAVE + ":ui", { calificador: "", modo: "todas", actual: 0 });
+  // Conjuntos. Las respuestas se guardan por criterio (uid), no por posición: cambiar de
+  // conjunto no toca nada de lo calificado. La posición se recuerda por ítem en cada conjunto.
+  var LISTAS = {
+    muestra: ITEMS.filter(function (x) { return x.muestra; }).sort(function (a, b) { return a.ordenMuestra - b.ordenMuestra; }),
+    colega: ITEMS.filter(function (x) { return x.colega; }),
+    todas: ITEMS
+  };
+  var NOMBRES = {
+    muestra: "Muestra de César (" + LISTAS.muestra.length + ")",
+    colega: "Subconjunto del colega (" + LISTAS.colega.length + ")",
+    todas: "Todas (" + LISTAS.todas.length + ")"
+  };
+  var UI_VERSION = 2; // v2: aparece la muestra y pasa a ser el conjunto por defecto
+
+  var ui = leer(CLAVE + ":ui", null);
+  if (!ui || typeof ui !== "object") ui = {};
+  if (ui.v !== UI_VERSION) { ui = { calificador: ui.calificador || "", modo: "muestra", actual: 0, pos: {}, v: UI_VERSION }; }
+  if (!LISTAS[ui.modo]) ui.modo = "muestra";
+  if (!ui.pos || typeof ui.pos !== "object") ui.pos = {};
   var resp = {};
   function claveResp() { return CLAVE + ":resp:" + (ui.calificador || "anonimo").trim().toLowerCase(); }
   function cargarResp() { resp = leer(claveResp(), {}); }
   function guardarTodo() { guardar(CLAVE + ":ui", ui); guardar(claveResp(), resp); }
 
-  function lista() { return ui.modo === "colega" ? ITEMS.filter(function (x) { return x.colega; }) : ITEMS; }
+  function lista() { return LISTAS[ui.modo]; }
+  function indiceDe(L, item) { for (var i = 0; i < L.length; i++) if (L[i].item === item) return i; return -1; }
+  function irAPosGuardada() { var i = indiceDe(lista(), ui.pos[ui.modo]); ui.actual = i >= 0 ? i : 0; }
+  function grupo(x) {
+    if (ui.modo === "todas") return "Bloque " + x.bloque;
+    if (ui.modo === "muestra") return "Bloque " + x.bloqueMuestra;
+    return "Colega";
+  }
   function estadoItem(x) {
     var n = 0, d = false;
     x.criterios.forEach(function (k) { var r = resp[k.uid]; if (r && r.cal) { n++; if (r.cal === "dudoso") d = true; } });
@@ -142,21 +169,24 @@
 
   var $ = function (id) { return document.getElementById(id); };
   $("calificador").value = ui.calificador;
-  $("modo").options[0].textContent = "Todas (" + DATOS.meta.nItems + ")";
-  $("modo").options[1].textContent = "Subconjunto del colega (" + DATOS.meta.nColega + ")";
+  Array.prototype.forEach.call($("modo").options, function (o) { if (NOMBRES[o.value]) o.textContent = NOMBRES[o.value]; });
   $("modo").value = ui.modo;
   cargarResp();
+  irAPosGuardada();
 
   function pintarIndice() {
-    var L = lista(), html = "", bloque = null;
+    var L = lista(), html = "", g = null, total = {}, hechosG = {};
+    L.forEach(function (x) { var k = grupo(x); total[k] = (total[k] || 0) + 1; if (estadoItem(x)) hechosG[k] = (hechosG[k] || 0) + 1; });
     L.forEach(function (x, i) {
-      if (x.bloque !== bloque && ui.modo === "todas") {
-        if (bloque !== null) html += "</div>";
-        bloque = x.bloque;
-        html += "<h3>Bloque " + bloque + "</h3><div class=\"rejilla\">";
-      } else if (i === 0) html += "<h3>Colega</h3><div class=\"rejilla\">";
+      var k = grupo(x);
+      if (k !== g) {
+        if (g !== null) html += "</div>";
+        g = k;
+        html += "<h3>" + esc(k) + " · " + (hechosG[k] || 0) + "/" + total[k] + "</h3><div class=\"rejilla\">";
+      }
       var cls = estadoItem(x) + (i === ui.actual ? " actual" : "");
-      html += "<button data-i=\"" + i + "\" class=\"" + cls + "\" title=\"" + esc(x.titulo) + "\">" + x.item.slice(1) + "</button>";
+      // El botón lleva la posición dentro del conjunto (1, 2, 3…); el título, el ítem.
+      html += "<button data-i=\"" + i + "\" class=\"" + cls + "\" title=\"" + esc(x.item + " · " + x.titulo) + "\">" + (i + 1) + "</button>";
     });
     html += "</div>";
     $("indice").innerHTML = html;
@@ -170,8 +200,9 @@
     if (ui.actual >= L.length) ui.actual = L.length - 1;
     if (ui.actual < 0) ui.actual = 0;
     var x = L[ui.actual];
+    ui.pos[ui.modo] = x.item;
     var h = "<div class=\"cab\"><span class=\"id\">" + x.item + "</span><span class=\"meta\">Caso " + esc(x.caso) +
-      " · " + esc(x.especialidad || "") + (ui.modo === "todas" ? " · bloque " + x.bloque : "") +
+      " · " + esc(x.especialidad || "") + (ui.modo === "colega" ? "" : " · " + grupo(x).toLowerCase()) +
       " · " + (ui.actual + 1) + " de " + L.length + "</span></div>";
     h += "<h2>" + esc(x.titulo) + "</h2>";
     h += "<div class=\"tarjeta\"><h4>Contexto del paciente (no lo ve el asistente)</h4><div class=\"contexto\">" + esc(x.contexto) + "</div></div>";
@@ -228,10 +259,17 @@
   $("pendiente").onclick = function () {
     var L = lista();
     for (var k = 1; k <= L.length; k++) { var i = (ui.actual + k) % L.length; if (!estadoItem(L[i])) { ui.actual = i; pintar(); window.scrollTo(0, 0); return; } }
-    alert("No queda ninguna pendiente en este conjunto. Ahora: Exportar CSV.");
+    alert("No queda ninguna pendiente en «" + NOMBRES[ui.modo] + "»: están calificadas las " + L.length + ". Ahora: Exportar CSV." +
+      (ui.modo === "muestra" ? "\n\nCésar: con la muestra completa ya terminaste; no hace falta calificar «Todas»." : ""));
   };
   $("calificador").onchange = function () { ui.calificador = this.value.trim(); cargarResp(); pintar(); };
-  $("modo").onchange = function () { ui.modo = this.value; ui.actual = 0; pintar(); };
+  $("modo").onchange = function () {
+    if (!LISTAS[this.value]) return;
+    ui.modo = this.value;
+    irAPosGuardada();
+    pintar();
+    window.scrollTo(0, 0);
+  };
 
   function csvCampo(s) { s = s == null ? "" : String(s); return /[",\r\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s; }
   $("exportar").onclick = function () {

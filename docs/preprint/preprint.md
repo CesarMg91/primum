@@ -41,10 +41,10 @@ open medical model, anchoring the automated judge against blinded human ratings.
 with a binary rubric; a single violated `must_not` criterion fails the case. A frozen test split
 of 56 cases (53 high-risk, 42 multi-turn with a simulated patient) was held out. MedGemma 4B was
 fine-tuned with QLoRA on judge-verified "gold" responses to training cases. Responses were scored
-by an LLM judge (Claude Opus 4.8) that must quote the model's text. A surgeon and
-[CÉSAR: colleague] rated all 112 test responses (56 base, 56 fine-tuned) blind to model and judge
-verdict. We report safety with Wilson 95% CIs, paired McNemar tests, and Cohen's κ between judge
-and humans.
+by an LLM judge (Claude Opus 4.8) that must quote the model's text. A surgeon rated a stratified
+random sample of 40 test responses (20 cases × both models), and a second physician 20 of them,
+blind to model and judge verdict. We report safety with Wilson 95% CIs, paired McNemar tests, and
+Cohen's κ between judge and humans.
 
 **Results.** By the LLM judge, safety rose from 12/56 (21.4%; 95% CI 12.7–33.8) for the base
 model to 30/56 (53.6%; 40.7–66.0) after fine-tuning (21 cases fixed, 3 broken; exact McNemar
@@ -161,13 +161,18 @@ cases (§3.4).
 
 ### 2.6 Human anchoring (blinded)
 
-For the 56 test cases × 2 models we presented 112 responses in random order (fixed seed
-20261109; the two responses to a case separated by ≥8 positions), with case context, full
-conversation and the `must_not` criterion, but **without model identity or judge verdict**
-(`anclaje-humano/`). Each rater labeled each criterion as *violated*, *not violated* or
-*uncertain*. The author rated all 112; a second physician [CÉSAR: specialty] rated a subset of 20
-(10 base, 10 c3, 20 distinct cases). The decryption key was kept separate until rating was
-complete.
+Of the 112 test responses (56 cases × 2 models), the author rated a **random sample of 40**: 20
+cases drawn by stratified random sampling on the failure mode (proportional allocation, largest
+remainder; fixed seed), with **both** responses of each case, so the human comparison of base vs
+c3 is paired. The sample was drawn from case metadata only, before any rating and without access
+to judge verdicts. A second physician [CÉSAR: specialty] rated 20 of those 40 items (one response
+per sampled case; 10 base, 10 c3). Responses were shown in random order (the two responses to a
+case at least 8 positions apart) with case context, full conversation and the `must_not`
+criterion, but **without model identity or judge verdict** (`anclaje-humano/`). Each rater labeled
+each criterion as *violated*, *not violated* or *uncertain*. The decryption key was kept separate
+until rating was complete. The sample size was reduced from the originally planned 112 to 40
+for feasibility (rater time); this change and the decision rule below were fixed and committed to
+the public repository before any rating began [CÉSAR: commit hash and date].
 
 ### 2.7 Outcomes and statistics
 
@@ -180,9 +185,13 @@ complete.
   analyses count it as violated and as not violated), with 95% CIs by case-level bootstrap
   (2,000 resamples). κ between humans on the shared subset.
 - For human-based safety, "uncertain" counts as violated (fail-safe).
-- **Pre-specified decision rule:** if κ(judge, human) ≥ 0.6 and the human McNemar test gives
-  p < 0.05, the judge figure is primary; if κ < 0.6, the human figure is primary and the judge is
+- **Pre-specified decision rule (fixed before rating):** if κ(judge, author) on the 40-item sample
+  is ≥ 0.6, the judge figure on all 56 cases is primary, with κ and the human figure on the sample
+  as validation (the human McNemar test on 20 pairs is reported but, being underpowered, does not
+  decide); if κ < 0.6, the human figure on the sample (20 paired cases) is primary and the judge is
   reported as a limitation.
+- A second LLM judge from a different model family (Gemini) re-scored all 112 responses;
+  judge–judge κ is reported as a sensitivity analysis [CIFRA PENDIENTE DEL SEGUNDO JUEZ].
 - Scripts: `scripts/reconciliar_cifras.mjs`, `anclaje-humano/calcular_anclaje.mjs`.
 
 ## 3. Results
@@ -203,16 +212,18 @@ dose 0→4/6, contraindication 6→7/11, localization 0→1/4, hallucination 0�
 
 | | n | Agreement | κ (95% CI) |
 |---|---|---|---|
-| Judge vs rater 1 | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE] |
+| Judge vs rater 1 | 40 | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE] |
 | Judge vs rater 2 | 20 | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE] |
 | Rater 1 vs rater 2 | 20 | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE] |
 
 ### 3.3 Safety by human rating
 
-| Model | Safe cases | Safety (95% CI) |
-|---|---|---|
-| MedGemma 4B (base) | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE] |
-| PRIMUM c3 | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE] |
+On the 20 sampled cases (human rating vs judge on the same cases):
+
+| Model | Safe cases, human | Safety, human (95% CI) | Safe cases, judge |
+|---|---|---|---|
+| MedGemma 4B (base) | [CIFRA PENDIENTE DEL ANCLAJE]/20 | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE]/20 |
+| PRIMUM c3 | [CIFRA PENDIENTE DEL ANCLAJE]/20 | [CIFRA PENDIENTE DEL ANCLAJE] | [CIFRA PENDIENTE DEL ANCLAJE]/20 |
 
 Fixed / broken: [CIFRA PENDIENTE DEL ANCLAJE]; exact McNemar p = [CIFRA PENDIENTE DEL ANCLAJE].
 Outcome of the decision rule: [CIFRA PENDIENTE DEL ANCLAJE].
@@ -251,9 +262,11 @@ Outcome of the decision rule: [CIFRA PENDIENTE DEL ANCLAJE].
   `needs_clinical_review`.
 - **Small test set.** 56 cases give wide confidence intervals; failure-mode subgroups have 2–17
   cases and are descriptive only.
-- **Human anchoring is limited:** [one or two raters]; the second rater saw 20 of 112 responses.
-  [CIFRA PENDIENTE DEL ANCLAJE: final rater count and κ between humans.] Raters may recognise a
-  model by style despite blinding.
+- **Human anchoring is limited:** a 40-item random sample (36% of responses) rated by the author
+  and 20 items by a second physician, instead of all 112, for feasibility. κ is therefore estimated
+  with a wide confidence interval and the human McNemar test (20 pairs) has low power; the change
+  was fixed before rating. The author also built the benchmark, which may bias his ratings despite
+  blinding. Raters may recognise a model by style. [CIFRA PENDIENTE DEL ANCLAJE: κ between humans.]
 - **Training–test separation is inferred, not logged.** 17 test cases have gold responses in the
   public gold file. The repository history indicates they were filtered out of c3's training data
   (§2.5), but the cloud training log was not preserved. The sensitivity analysis without them
