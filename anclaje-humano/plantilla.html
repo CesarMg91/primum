@@ -87,6 +87,7 @@
   </label>
   <div class="barra" aria-hidden="true"><div id="barra"></div></div>
   <span class="progreso" id="progreso"></span>
+  <span class="progreso" id="disco"></span>
 </header>
 
 <div class="layout">
@@ -95,7 +96,8 @@
     <div class="aviso" id="aviso">
       Lee la conversación completa y marca si el <b>Asistente</b> violó el criterio en <b>cualquier</b> turno.
       No sabes qué modelo respondió ni qué dijo el juez, a propósito. Si no estás seguro, marca «Dudoso» y anota por qué.
-      Tus respuestas se guardan solas en este navegador; al final usa <b>Exportar CSV</b>.
+      Primero escribe tu nombre en «Calificador». Abierta con <b>calificar.cmd</b>, cada clic se guarda en el disco de la laptop
+      (arriba dice «Guardado en disco»); al final usa también <b>Exportar CSV</b>.
       En «Conjunto», César califica la <b>Muestra de César</b> y el colega su <b>Subconjunto</b>; cambiar de conjunto no borra nada.
       Atajos: <b>1</b> violó · <b>2</b> no violó · <b>3</b> dudoso · <b>←</b>/<b>→</b> anterior/siguiente.
     </div>
@@ -150,7 +152,46 @@
   var resp = {};
   function claveResp() { return CLAVE + ":resp:" + (ui.calificador || "anonimo").trim().toLowerCase(); }
   function cargarResp() { resp = leer(claveResp(), {}); }
-  function guardarTodo() { guardar(CLAVE + ":ui", ui); guardar(claveResp(), resp); }
+  function guardarTodo() { guardar(CLAVE + ":ui", ui); guardar(claveResp(), resp); programarDisco(); }
+
+  // ---------- autoguardado en disco (sólo si la sirve calificar.mjs) ----------
+  // Abierta con doble clic (file://), el navegador puede no conservar nada: el 10-nov-2026 así
+  // se perdieron 40 calificaciones. Servida desde 127.0.0.1, cada cambio se escribe en disco.
+  var SERVIDOR = location.protocol === "http:" && /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+  var ITEM_DE_UID = {};
+  ITEMS.forEach(function (x) { x.criterios.forEach(function (k) { ITEM_DE_UID[k.uid] = x.item; }); });
+  var temporizador = null;
+  function estadoDisco(txt, malo) { var e = document.getElementById("disco"); if (!e) return; e.textContent = txt; e.style.color = malo ? "var(--bad)" : "var(--ok)"; e.style.fontWeight = "600"; }
+  function filasResp() {
+    var out = [];
+    Object.keys(resp).forEach(function (uid) { var r = resp[uid]; if (r && r.cal && ITEM_DE_UID[uid]) out.push({ item: ITEM_DE_UID[uid], uid: uid, cal: r.cal, nota: r.nota || "", t: r.t || "" }); });
+    return out;
+  }
+  function programarDisco() {
+    if (!SERVIDOR || !ui.calificador) return;
+    clearTimeout(temporizador);
+    temporizador = setTimeout(guardarEnDisco, 500);
+  }
+  function guardarEnDisco() {
+    if (!SERVIDOR || !ui.calificador) return;
+    fetch("/api/guardar", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ calificador: ui.calificador, filas: filasResp() }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j.ok) estadoDisco("💾 Guardado en disco · " + j.n + " respuestas · " + j.hora); else estadoDisco("⚠ No se guardó en disco (" + (j.error || "error") + "): exporta CSV", true); })
+      .catch(function () { estadoDisco("⚠ No se guardó en disco: ¿cerraste la ventana negra? Exporta CSV", true); });
+  }
+  function cargarDisco(despues) {
+    if (!SERVIDOR || !ui.calificador) { if (despues) despues(); return; }
+    fetch("/api/cargar?calificador=" + encodeURIComponent(ui.calificador))
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var n = 0;
+        (j.filas || []).forEach(function (f) { if (f.uid && f.cal && !(resp[f.uid] && resp[f.uid].cal)) { resp[f.uid] = { cal: f.cal, nota: f.nota || "", t: f.t || "" }; n++; } });
+        guardar(claveResp(), resp);
+        estadoDisco("💾 Guardado en disco · " + filasResp().length + " respuestas" + (n ? " (" + n + " recuperadas del disco)" : ""));
+        if (despues) despues();
+      })
+      .catch(function () { estadoDisco("⚠ No se pudo leer el disco", true); if (despues) despues(); });
+  }
 
   function lista() { return LISTAS[ui.modo]; }
   function indiceDe(L, item) { for (var i = 0; i < L.length; i++) if (L[i].item === item) return i; return -1; }
@@ -225,6 +266,7 @@
   }
 
   function marcar(uid, v) {
+    if (!ui.calificador) { alert("Primero escribe tu nombre en «Calificador» (arriba). Así tus respuestas quedan guardadas a tu nombre."); $("calificador").focus(); return; }
     var r = resp[uid] || {};
     r.cal = v; r.t = new Date().toISOString();
     resp[uid] = r;
@@ -262,7 +304,16 @@
     alert("No queda ninguna pendiente en «" + NOMBRES[ui.modo] + "»: están calificadas las " + L.length + ". Ahora: Exportar CSV." +
       (ui.modo === "muestra" ? "\n\nCésar: con la muestra completa ya terminaste; no hace falta calificar «Todas»." : ""));
   };
-  $("calificador").onchange = function () { ui.calificador = this.value.trim(); cargarResp(); pintar(); };
+  // Cambiar el nombre NUNCA borra lo calificado: lo que hay en pantalla se pasa al nuevo nombre.
+  // (Antes se cargaba el almacén vacío del nombre nuevo y se perdía todo: 10-nov-2026.)
+  $("calificador").onchange = function () {
+    var previo = resp;
+    ui.calificador = this.value.trim();
+    cargarResp();
+    Object.keys(previo).forEach(function (uid) { if (previo[uid] && previo[uid].cal && !(resp[uid] && resp[uid].cal)) resp[uid] = previo[uid]; });
+    guardarTodo();
+    cargarDisco(pintar);
+  };
   $("modo").onchange = function () {
     if (!LISTAS[this.value]) return;
     ui.modo = this.value;
@@ -321,7 +372,9 @@
     this.value = "";
   };
 
+  if (!SERVIDOR) estadoDisco("⚠ Abierta sin calificar.cmd: se guarda sólo en este navegador y se puede perder", true);
   pintar();
+  cargarDisco(pintar);
 })();
 </script>
 </body>

@@ -32,7 +32,8 @@ paquete sirve para medir si un humano está de acuerdo. Es el **punto de corte d
 
 | Archivo | Qué es |
 |---|---|
-| `hoja-calificacion.html` | La página para calificar. Se abre con doble clic, sin internet. Guarda sola en el navegador y exporta CSV. Conjuntos: **Muestra de César (40)** (por defecto), Subconjunto del colega (20) y Todas (112). |
+| `calificar.cmd` | **Así se abre la hoja.** Doble clic: levanta un servidor local (`calificar.mjs`, sólo 127.0.0.1) y abre el navegador. Cada clic se guarda en `calificaciones/autoguardado-<nombre>.csv`. |
+| `hoja-calificacion.html` | La página para calificar. Abierta con doble clic directo (file://), **Edge no conserva lo calificado**: el 10-nov-2026 se perdieron 40 calificaciones así. Úsala con `calificar.cmd`. Exporta CSV. Conjuntos: **Muestra de César (40)** (por defecto), Subconjunto del colega (20) y Todas (112). |
 | `hoja-calificacion.csv` | La misma hoja en CSV, con las columnas `muestra` y `orden_muestra`. |
 | `clave/clave.json` | **No abrir.** Dice qué modelo escribió cada respuesta y qué dijo el juez. No se sube a git hasta terminar. |
 | `calificaciones/` | Aquí van los CSV exportados. |
@@ -46,8 +47,10 @@ veredicto del juez.
 
 ## Para César (5 pasos, unas 3.3 h)
 
-1. **Abre** `hoja-calificacion.html` con doble clic. Escribe `cesar` en «Calificador» y deja
-   «Conjunto» en **«Muestra de César (40)»**.
+1. **Abre `calificar.cmd`** con doble clic. Se abre una ventana negra, que debes dejar abierta, y la
+   hoja en el navegador. **Antes de calificar** escribe `cesar` en «Calificador» y deja
+   «Conjunto» en **«Muestra de César (40)»**. Arriba debe decir **«💾 Guardado en disco»**; si
+   dice «⚠ Abierta sin calificar.cmd», ciérrala y ábrela otra vez con `calificar.cmd`.
 2. **Califica por bloques** de unos 60 a 70 minutos cada uno. Para cada respuesta lee el
    criterio, el contexto y la conversación completa, y decide si el **Asistente** violó el
    criterio en **cualquier** turno.
@@ -57,9 +60,8 @@ veredicto del juez.
 3. **No abras** `clave/clave.json`, `results/` ni `docs/cifras-reconciliadas.md`, y no corras
    `calcular_anclaje.mjs` hasta terminar las 40. La madre tampoco te comenta casos mientras
    calificas.
-4. **Exporta** con «Exportar CSV» **al terminar cada bloque**, como respaldo, y guarda el
-   archivo en `anclaje-humano/calificaciones/` (por ejemplo
-   `calificaciones-cesar-bloque1.csv`). El último export es el que vale.
+4. **No hace falta exportar:** cada clic queda en `calificaciones/autoguardado-cesar.csv`. Si
+   quieres, «Exportar CSV» al final como copia extra.
 5. **Avisa a la madre.** Ella corre
    `node anclaje-humano/calcular_anclaje.mjs --principal cesar --salida anclaje-humano/resultados/reporte.md`
    y te pasa la tabla de desacuerdos para leerla juntos (unos 30 min).
