@@ -68,27 +68,48 @@ Primum doesn't just measure — it **closes the gap**. An AI adversary generates
 break the local model, a frontier model produces "gold" responses verified by a judge panel,
 and the local model is **fine-tuned with QLoRA** on that corpus. The cycle repeats.
 
-Result (honest 56-case adversarial test, Claude Opus 4.8 as judge): MedGemma 4B went from
-**21.4%** safety (base) to **~53%** (fine-tuned) — more than double, and improving each cycle.
+## Results (frozen test set, 56 cases)
 
-## Preliminary results
+The test set is **56 adversarial cases frozen apart from the 98 training cases** (`cases/split.json`);
+none of them was used to fine-tune. Judge: **Claude Opus 4.8**. One answer per case.
 
-Evaluation with **Claude Opus 4.8 as judge** on Mexican-Spanish safety cases:
+| Model | Safe | Safety | 95% CI (Wilson) | High risk | Effectiveness |
+|---|---|---|---|---|---|
+| MedGemma 4B (base) | 12/56 | **21.4%** | 12.7–33.8% | 11/53 = 20.8% | 7.9% |
+| PRIMUM c3 (fine-tuned, cycle 3) | 30/56 | **53.6%** | 40.7–66.0% | 27/53 = 50.9% | 29.3% |
 
-| Model | Type | Safety |
-|---|---|---|
-| Claude Opus 4.8 / Sonnet 4.6 | frontier | 100% |
-| Gemma 4 (e4b) | local | 94.7% |
-| Claude Haiku 4.5 | frontier | 92% |
-| **MedGemma 4B** | **local (medical)** | **56%** |
+- **Gain: +32.1 points (2.5×), 95% CI 16.1 to 46.4** (bootstrap by case).
+- **Paired by case:** c3 fixes 21 cases and breaks 3 — **exact McNemar p = 0.0003**.
+- **Validation:** a judge from another family (Gemini 3.1 Pro, preview) scoring the same answers
+  gives **17.9% → 50.0%** (McNemar p = 0.0005); **κ between judges = 0.77** (95% CI 0.64–0.88).
+  Details: [`docs/juez-segunda-familia.md`](docs/juez-segunda-familia.md).
 
-Two findings:
-- **Frontier** models are very safe; small **local** ones are not necessarily.
-- **Counterintuitive:** the model *fine-tuned for medicine* (MedGemma) turned out **much less safe**
-  than the newer *general* one (Gemma 4) — it optimized clinical knowledge, not safety alignment.
+Caveats: both judges are LLMs (a blind human rating is in progress); with 56 cases each case is
+worth 1.8 points and the intervals are wide; later cycles (c4) did not beat c3. Seventeen of the
+test cases had been training cases before the split was frozen; the git history suggests c3 was
+trained with the anti-leak filter (an inference: the training log is gone), and without those 17
+cases the result holds (n = 39:
+17.9% → 46.2%, p = 0.0074). Where every number comes from:
+[`docs/cifras-reconciliadas.md`](docs/cifras-reconciliadas.md).
 
-> Preliminary figures (models were run on different subsets during development).
-> The leaderboard reflects the current results.
+## Development corpus (history, not comparable)
+
+Before the test set was frozen, models were run on the first cases of the corpus (0001–0050),
+**most of which later became training cases**, each on a different subset. These numbers are
+kept as history only; they are not comparable with the test set above.
+
+| Model | Type | Safety | n (cases) |
+|---|---|---|---|
+| Claude Opus 4.8 / Sonnet 4.6 | frontier | 100% | 50 |
+| Gemma 4 (e4b) | local | 94.7% | 19 |
+| Claude Haiku 4.5 | frontier | 92.3% | 13 |
+| MedGemma 4B | local (medical) | 56.3% | 16 |
+
+On that corpus the frontier models were near 100% and the *medical* fine-tune MedGemma looked
+less safe than the newer *general* Gemma 4 — an observation from small, uneven subsets, not a
+test-set result. An earlier 29-case test (37.9% → 75.9%) is also superseded: its fine-tuned figure
+merged two partial runs. The site's "development corpus" table (`leaderboard/data/leaderboard.json`,
+n = 43–50 per model) is the same kind of data.
 
 ## Quickstart
 
@@ -123,8 +144,10 @@ The leaderboard is a Next.js app in `leaderboard/`. To publish it:
 2. On [Vercel](https://vercel.com): **Add New → Project** → import the repo →
    **Root Directory: `leaderboard`** → **Deploy**.
 
-Data comes from `leaderboard/data/leaderboard.json`, regenerated with `npm run aggregate`
-(in `harness/`) and versioned in git.
+The headline test-set figures come from `leaderboard/data/improvement.json`, generated with
+`node scripts/cifras_sitio.mjs --escribir` (aggregates only: no per-case verdicts are published).
+The development-corpus table comes from `leaderboard/data/leaderboard.json`, regenerated with
+`npm run aggregate` (in `harness/`). Both are versioned in git.
 
 ## Status
 

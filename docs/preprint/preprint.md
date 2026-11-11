@@ -48,7 +48,8 @@ Cohen's κ between judge and humans.
 
 **Results.** By the LLM judge, safety rose from 12/56 (21.4%; 95% CI 12.7–33.8) for the base
 model to 30/56 (53.6%; 40.7–66.0) after fine-tuning (21 cases fixed, 3 broken; exact McNemar
-p = 0.0003). Judge–human agreement was κ = [CIFRA PENDIENTE DEL ANCLAJE]. By human ratings,
+p = 0.0003). A second-family judge (Gemini) gave 17.9% → 50.0% (p = 0.0005; judge–judge
+κ = 0.77). Judge–human agreement was κ = [CIFRA PENDIENTE DEL ANCLAJE]. By human ratings,
 safety was [CIFRA PENDIENTE DEL ANCLAJE] vs [CIFRA PENDIENTE DEL ANCLAJE]
 (McNemar p = [CIFRA PENDIENTE DEL ANCLAJE]). Hallucination of drug mechanisms remained largely
 unsolved (1/8 hallucination cases safe after fine-tuning vs 0/8 before, by the judge).
@@ -190,8 +191,9 @@ the public repository before any rating began [CÉSAR: commit hash and date].
   as validation (the human McNemar test on 20 pairs is reported but, being underpowered, does not
   decide); if κ < 0.6, the human figure on the sample (20 paired cases) is primary and the judge is
   reported as a limitation.
-- A second LLM judge from a different model family (Gemini) re-scored all 112 responses;
-  judge–judge κ is reported as a sensitivity analysis [CIFRA PENDIENTE DEL SEGUNDO JUEZ].
+- A second LLM judge from a different model family (Gemini 3.1 Pro, Vertex AI) re-scored all 112
+  responses with the same prompt (`harness/src/rejudge.ts`, `scripts/juez_segunda_familia.mjs`);
+  judge–judge κ is reported as a sensitivity analysis.
 - Scripts: `scripts/reconciliar_cifras.mjs`, `anclaje-humano/calcular_anclaje.mjs`.
 
 ## 3. Results
@@ -234,6 +236,10 @@ Outcome of the decision rule: [CIFRA PENDIENTE DEL ANCLAJE].
   judge-rated safety was 7/39 (17.9%) for base and 18/39 (46.2%) for c3 (13 fixed, 2 broken;
   exact McNemar p = 0.0074). The improvement remains significant without any case that ever had a
   gold response (§2.5).
+- **Second-family judge (Gemini 3.1 Pro):** safety 10/56 (17.9%; 95% CI 10.0–29.8) for base and
+  28/56 (50.0%; 37.3–62.7) for c3, exact McNemar p = 0.0005; the same +32.1-point improvement as
+  with the Claude judge. Agreement between the two judges: κ = 0.77 (95% CI 0.64–0.88); 12 of 112
+  verdicts disagree, 6 per model, with no sign that the Claude judge favours c3.
 - Other fine-tuning cycles (judge, 56/56): c4 29/56 (51.8%); c3 vs c4 McNemar p = 1.0.
 - Human rating with "uncertain" counted as not violated: [CIFRA PENDIENTE DEL ANCLAJE].
 - Disagreements between judge and humans, by failure mode: [CIFRA PENDIENTE DEL ANCLAJE].
@@ -254,10 +260,10 @@ Outcome of the decision rule: [CIFRA PENDIENTE DEL ANCLAJE].
 
 ## 5. Limitations
 
-- **Single judge, single family.** Every automated verdict comes from one Claude model; the
-  adversarial case generator, the simulated patient, the gold-verifying panel and the judge are
-  all Claude models. This may favour a model trained on Claude-generated gold responses. A
-  second-family judge is planned but not reported here.
+- **LLM judges.** The primary judge is a Claude model, and so are the adversarial case generator,
+  the simulated patient and the gold-verifying panel, which could favour a model trained on
+  Claude-generated gold responses. A second-family judge (Gemini) gave the same improvement and
+  agreed substantially (κ = 0.77), which argues against a family bias, but both are LLMs.
 - **Clinical review is incomplete.** 50 of 154 cases (14 of the 56 test cases) are still marked
   `needs_clinical_review`.
 - **Small test set.** 56 cases give wide confidence intervals; failure-mode subgroups have 2–17

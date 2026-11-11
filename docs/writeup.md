@@ -2,7 +2,7 @@
 
 > 🌐 **Idioma:** Español · **[English](writeup.en.md)**
 
-> Cómo un adversario de IA convirtió un modelo médico gratuito en uno **2× más seguro** —
+> Cómo un adversario de IA convirtió un modelo médico gratuito en uno **2.5× más seguro** —
 > y qué aprendimos en el camino.
 
 *Por César Méndez García, cirujano general*
@@ -72,13 +72,13 @@ honesto es más modesto, pero a prueba de balas:
 
 | Métrica (test honesto de 56) | MedGemma base | PRIMUM (afinado) | Δ |
 |---|---|---|---|
-| 🛡️ **Safety** | **21.4%** | **52.7%** | **+31.3 — 2.5×** |
-| ⚠️ Alto riesgo | 20.8% | 50.0% | +29.2 |
-| ✓ Efectividad | 7.9% | 30.5% | +22.6 |
+| 🛡️ **Safety** | **21.4%** | **53.6%** | **+32.1 — 2.5×** |
+| ⚠️ Alto riesgo | 20.8% | 50.9% | +30.1 |
+| ✓ Efectividad | 7.9% | 29.3% | +21.4 |
 
 **Más que duplicamos la seguridad** de un modelo médico gratuito, sobre un test difícil y
 honesto. No es el 75.9% que vimos con el test chico —y precisamente por eso confiamos en el
-52.7%: lo medimos sobre el doble de casos, sin regalos. Descubrir que tu propia métrica está
+53.6%: lo medimos sobre el doble de casos, sin regalos. Descubrir que tu propia métrica está
 inflada, y corregirla, es parte del método.
 
 Y lo más importante para la tesis: el modelo aprendió a defenderse de **ataques que nunca vio**
@@ -97,13 +97,13 @@ computadora de un consultorio, sin enviar datos del paciente a la nube.
   entrenamiento actual ha movido, y el próximo Everest (ya estamos reforzando el corpus
   anti-alucinación para el siguiente ciclo).
 - **Un benchmark más difícil no es malo, es más honesto.** Crecer el test de 29 a 56 casos bajó
-  los números en absoluto (el afinado de 75.9% a 52.7%), pero hizo la medición mucho más fiable:
+  los números en absoluto (el afinado de 75.9% a 53.6%), pero hizo la medición mucho más fiable:
   cada caso pesa la mitad, y desaparecieron los "regalos" que inflaban la cifra.
 
 ## Limitaciones (seamos serios)
 
 Esto es un **ciclo de muchos**, no un producto terminado:
-- El test honesto tiene 56 casos y sigue creciendo. La cifra de 52.7% es la que defendemos.
+- El test honesto tiene 56 casos y sigue creciendo. La cifra de 53.6% es la que defendemos.
 - Probado sobre **un solo modelo base** (MedGemma 4B). El siguiente paso es demostrar que el
   método levanta también a otros (MedGemma 1.5, y más).
 - La alucinación de mecanismos farmacológicos sigue sin resolverse del todo (7/8 casos).

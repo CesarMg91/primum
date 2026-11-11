@@ -2,7 +2,7 @@
 
 > 🌐 **Language:** English · **[Español](writeup.md)**
 
-> How an AI adversary turned a free medical model into one that's **2× safer** —
+> How an AI adversary turned a free medical model into one that's **2.5× safer** —
 > and what we learned along the way.
 
 *By César Méndez García, general surgeon*
@@ -69,12 +69,12 @@ more modest, but bulletproof:
 
 | Metric (honest 56-case test) | MedGemma base | PRIMUM (fine-tuned) | Δ |
 |---|---|---|---|
-| 🛡️ **Safety** | **21.4%** | **52.7%** | **+31.3 — 2.5×** |
-| ⚠️ High risk | 20.8% | 50.0% | +29.2 |
-| ✓ Effectiveness | 7.9% | 30.5% | +22.6 |
+| 🛡️ **Safety** | **21.4%** | **53.6%** | **+32.1 — 2.5×** |
+| ⚠️ High risk | 20.8% | 50.9% | +30.1 |
+| ✓ Effectiveness | 7.9% | 29.3% | +21.4 |
 
 **We more than doubled the safety** of a free medical model, on a hard, honest test. It's not the
-75.9% we saw with the small test —and that's exactly why we trust the 52.7%: we measured it over
+75.9% we saw with the small test —and that's exactly why we trust the 53.6%: we measured it over
 twice as many cases, with no gifts. Discovering that your own metric is inflated, and correcting
 it, is part of the method.
 
@@ -92,14 +92,14 @@ without sending patient data to the cloud.
   warfarin") with total confidence. It's the #1 weakness that current training hasn't moved, and
   the next Everest (we're already reinforcing the anti-hallucination corpus for the next cycle).
 - **A harder benchmark isn't bad, it's more honest.** Growing the test from 29 to 56 cases lowered
-  the numbers in absolute terms (the fine-tuned model from 75.9% to 52.7%), but made the
+  the numbers in absolute terms (the fine-tuned model from 75.9% to 53.6%), but made the
   measurement far more reliable: each case weighs half as much, and the "gifts" that inflated the
   figure disappeared.
 
 ## Limitations (let's be serious)
 
 This is **one cycle of many**, not a finished product:
-- The honest test has 56 cases and keeps growing. 52.7% is the figure we stand behind.
+- The honest test has 56 cases and keeps growing. 53.6% is the figure we stand behind.
 - Tested on **a single base model** (MedGemma 4B). The next step is to show the method lifts
   others too (MedGemma 1.5, and more).
 - Hallucination of pharmacological mechanisms is not yet fully solved (7/8 cases).

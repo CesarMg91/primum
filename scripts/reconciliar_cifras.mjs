@@ -261,7 +261,11 @@ for (const [arch, aguja, texto, met, valor, filtro, ref] of afirmaciones) {
   p(`| \`${arch}\` | ${ln} | ${texto} (${metricas[met]}) | ${valor} % | ${origen(met, valor, filtro)} | ${correcto} |`);
 }
 p();
-p(`\`leaderboard/data/improvement.json\` declara \`testCases: ${imp.testCases}\` y fecha \`${imp.updated}\`: es el test viejo de 29 casos, no el de 56.`);
+p(
+  imp.testCases === N_TEST
+    ? `\`leaderboard/data/improvement.json\` declara \`testCases: ${imp.testCases}\` y fecha \`${imp.updated}\`: ya es el test de ${N_TEST} (lo genera \`scripts/cifras_sitio.mjs\`).`
+    : `\`leaderboard/data/improvement.json\` declara \`testCases: ${imp.testCases}\` y fecha \`${imp.updated}\`: es el test viejo de 29 casos, no el de 56.`
+);
 p();
 p(`\`leaderboard/data/leaderboard.json\` (generado ${lb.generatedAt}) mezcla denominadores:`);
 p();

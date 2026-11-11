@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
     title: "Primum · Benchmark de seguridad clínica",
     description:
-      "Frontier ~100% vs modelo médico local. ¿Es seguro tu modelo de IA en la clínica? Benchmark abierto, safety-first, en español.",
+      "MedGemma 4B pasa de 21.4 % a 53.6 % de safety tras afinarlo (test congelado de 56 casos). ¿Es seguro tu modelo de IA en la clínica? Benchmark abierto, safety-first, en español.",
     locale: "es_MX",
   },
   twitter: {

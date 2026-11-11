@@ -5,6 +5,8 @@ import Coliseo from "./Coliseo";
 import { useLang, LangToggle } from "./i18n";
 
 const pc1 = (n: number) => `${(n * 100).toFixed(1)}%`;
+const pts = (n: number) => (n * 100).toFixed(1);
+const ci = ([lo, hi]: number[]) => `${(lo * 100).toFixed(1)}–${(hi * 100).toFixed(1)}%`;
 const pct = (n: number | null) => (n === null ? "n/a" : `${(n * 100).toFixed(1)}%`);
 const width = (n: number | null) => (n === null ? "0%" : `${(n * 100).toFixed(0)}%`);
 const isLocal = (m: string) => m.startsWith("ollama:");
@@ -20,6 +22,9 @@ export default function Page() {
     (a, b) => b.safetyScore - a.safetyScore || b.effectivenessScore - a.effectivenessScore
   );
   const maxCases = entries.length ? Math.max(...entries.map((e) => e.totalCases)) : board.totalCases;
+
+  const minCases = entries.length ? Math.min(...entries.map((e) => e.totalCases)) : board.totalCases;
+  const { base, primum, secondJudge: sj } = improvement;
 
   const locals = entries.filter((e) => isLocal(e.model));
   const frontier = entries.filter((e) => !isLocal(e.model));
@@ -38,7 +43,7 @@ export default function Page() {
       <div className="stats">
         <div className="stat"><b>{improvement.corpus}</b><span>{t.statCases}</span></div>
         <div className="stat"><b>{improvement.cycles}</b><span>{t.statCycles}</span></div>
-        <div className="stat"><b>2×</b><span>{t.statSafety}</span></div>
+        <div className="stat"><b>{improvement.delta.ratio}×</b><span>{t.statSafety}</span></div>
         <div className="stat"><b>{improvement.updated}</b><span>{t.statUpdated}</span></div>
       </div>
 
@@ -59,6 +64,7 @@ export default function Page() {
               <div className="lbl">{t.worstLocal}</div>
             </div>
           </div>
+          <p className="fine" dangerouslySetInnerHTML={{ __html: t.devNote(minCases, maxCases) }} />
         </>
       )}
 
@@ -69,45 +75,29 @@ export default function Page() {
 
       <div className="improve-finding">
         <div className="col">
-          <div className="big base">{pc1(improvement.base.safety)}</div>
+          <div className="big base">{pc1(base.safety)}</div>
           <div className="lbl">{t.baseLabel}</div>
+          <div className="ci">{t.safeOf(base.safe, base.n)} · {t.ci95} {ci(base.ci)}</div>
         </div>
-        <div className="arrow"><b>2×</b><span>+38 pts</span></div>
+        <div className="arrow"><b>{improvement.delta.ratio}×</b><span>+{pts(improvement.delta.pts)} pts</span></div>
         <div className="col">
-          <div className="big primum">{pc1(improvement.primum.safety)}</div>
+          <div className="big primum">{pc1(primum.safety)}</div>
           <div className="lbl">{t.primumLabel}</div>
+          <div className="ci">{t.safeOf(primum.safe, primum.n)} · {t.ci95} {ci(primum.ci)}</div>
         </div>
+      </div>
+
+      <div className="validation">
+        <p dangerouslySetInnerHTML={{ __html: t.mcnemarLine(improvement.mcnemar.p, improvement.mcnemar.fixed, improvement.mcnemar.broke, pts(improvement.delta.ci[0]), pts(improvement.delta.ci[1])) }} />
+        <p dangerouslySetInnerHTML={{ __html: t.secondJudgeLine(pc1(sj.base.safety), pc1(sj.primum.safety), sj.mcnemarP, sj.kappa.toFixed(2), sj.kappaCi[0].toFixed(2), sj.kappaCi[1].toFixed(2)) }} />
+        <p dangerouslySetInnerHTML={{ __html: t.testNote(improvement.testCases, improvement.trainCases) }} />
       </div>
 
       <Coliseo />
 
       <div className="improve-head" style={{ marginTop: 36 }}>
-        <h2>{t.casesH2(improvement.testCases)}</h2>
-        <p dangerouslySetInnerHTML={{ __html: t.casesBody }} />
-      </div>
-
-      <div className="casegrid">
-        {improvement.cases.map((c) => {
-          const win = c.base === 0 && c.primum === 1;
-          return (
-            <div key={c.id} className={`casecell${win ? " win" : ""}`}>
-              <div className="casetop">
-                <span className="caseid">{c.id}</span>
-                <span className="casemarks">
-                  <span className={`dot ${c.base ? "ok" : "bad"}`} title="base" />
-                  <span className="arrow">→</span>
-                  <span className={`dot ${c.primum ? "ok" : "bad"}`} title="PRIMUM" />
-                </span>
-              </div>
-              <div className="casetitle">{c.t}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="improve-head" style={{ marginTop: 36 }}>
         <h2>{t.generalH2}</h2>
-        <p dangerouslySetInnerHTML={{ __html: t.generalBody(board.totalCases, board.generatedAt.slice(0, 10)) }} />
+        <p dangerouslySetInnerHTML={{ __html: t.generalBody(minCases, maxCases, board.generatedAt.slice(0, 10)) }} />
       </div>
 
       <div className="card">
@@ -165,7 +155,7 @@ export default function Page() {
       </div>
 
       <footer>
-        <p dangerouslySetInnerHTML={{ __html: t.footer(maxCases) }} />
+        <p dangerouslySetInnerHTML={{ __html: t.footer(improvement.corpus, improvement.testCases) }} />
       </footer>
     </main>
   );

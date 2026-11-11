@@ -57,7 +57,7 @@ veredicto del juez.
    - Atajos: `1` violó, `2` no violó, `3` dudoso, `→` siguiente.
    - Si dudas, marca «Dudoso» y anota el turno o la frase.
    - Puedes cerrar y volver: queda guardado en ese navegador.
-3. **No abras** `clave/clave.json`, `results/` ni `docs/cifras-reconciliadas.md`, y no corras
+3. **No abras** `clave/clave.json`, `results/`, `docs/cifras-reconciliadas.md` ni `docs/juez-segunda-familia.md` (traen veredictos por caso), y no corras
    `calcular_anclaje.mjs` hasta terminar las 40. La madre tampoco te comenta casos mientras
    calificas.
 4. **No hace falta exportar:** cada clic queda en `calificaciones/autoguardado-cesar.csv`. Si

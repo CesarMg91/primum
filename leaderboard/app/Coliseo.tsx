@@ -7,6 +7,12 @@ import { useLang } from "./i18n";
 
 const TEAL = 0x00a896, SOFT = 0xe1f5ee, ROSE = 0xf43f5e, DEEP = 0x028090;
 
+// Blind rule: the arena is driven by the aggregate only (k safe out of n), spread
+// evenly. It never shows which test case was resisted or broken.
+function spread(k: number, n: number): boolean[] {
+  return Array.from({ length: n }, (_, i) => Math.floor(((i + 1) * k) / n) > Math.floor((i * k) / n));
+}
+
 export default function Coliseo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tickerRef = useRef<HTMLDivElement>(null);
@@ -19,7 +25,7 @@ export default function Coliseo() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const cases = improvement.cases;
+    const outcomes = spread(improvement.primum.safe, improvement.testCases);
 
     let W = canvas.clientWidth || 640;
     let H = canvas.clientHeight || 460;
@@ -59,7 +65,7 @@ export default function Coliseo() {
     scene.add(stars);
 
     const attackGeo = new THREE.SphereGeometry(0.2, 12, 12);
-    type Ember = { mesh: THREE.Mesh; ang: number; r: number; y: number; safe: boolean; c: { id: string; t: string } };
+    type Ember = { mesh: THREE.Mesh; ang: number; r: number; y: number; safe: boolean };
     type Burst = { pts: THREE.Points; vel: THREE.Vector3[]; life: number };
     const embers: Ember[] = [];
     const bursts: Burst[] = [];
@@ -78,17 +84,17 @@ export default function Coliseo() {
       bursts.push({ pts, vel, life: 0 });
     }
     function spawn() {
-      const c = cases[idx % cases.length]; idx++;
+      const safe = outcomes[idx % outcomes.length]; idx++;
       const m = new THREE.Mesh(attackGeo, new THREE.MeshBasicMaterial({ color: ROSE }));
       const ang = Math.random() * 6.283;
       m.position.set(Math.cos(ang) * 14, (Math.random() - 0.5) * 7, Math.sin(ang) * 14);
       scene.add(m);
-      embers.push({ mesh: m, ang, r: 14, y: m.position.y, safe: c.primum === 1, c });
+      embers.push({ mesh: m, ang, r: 14, y: m.position.y, safe });
     }
-    function setTicker(c: { id: string; t: string }, ok: boolean) {
+    function setTicker(ok: boolean) {
       const tt = tRef.current;
       if (tickerRef.current)
-        tickerRef.current.innerHTML = `<span style="color:${ok ? "#5DCAA5" : "#f5949a"}">${ok ? "⛨ " + tt.colResisted : "✕ " + tt.colBroke}</span> &nbsp;<span style="color:#9FE1CB">${c.id}</span> &nbsp;${c.t}`;
+        tickerRef.current.innerHTML = `<span style="color:${ok ? "#5DCAA5" : "#f5949a"}">${ok ? "⛨ " + tt.colResisted : "✕ " + tt.colBroke}</span>`;
       if (tallyRef.current) tallyRef.current.textContent = tt.colResistedTally(resisted, total);
     }
 
@@ -119,10 +125,10 @@ export default function Coliseo() {
         (e.mesh.material as THREE.MeshBasicMaterial).opacity = 0.7 + Math.sin(t * 6 + i) * 0.3;
         const d = tmp.length();
         if (e.safe && d <= 3.5) {
-          spawnBurst(tmp, false); resisted++; total++; setTicker(e.c, true);
+          spawnBurst(tmp, false); resisted++; total++; setTicker(true);
           scene.remove(e.mesh); embers.splice(i, 1);
         } else if (!e.safe && d <= 1.3) {
-          spawnBurst(e.mesh.position, true); flash = 1; total++; setTicker(e.c, false);
+          spawnBurst(e.mesh.position, true); flash = 1; total++; setTicker(false);
           scene.remove(e.mesh); embers.splice(i, 1);
         } else if (e.r <= 0.2) { scene.remove(e.mesh); embers.splice(i, 1); }
       }

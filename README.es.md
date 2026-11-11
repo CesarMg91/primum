@@ -68,8 +68,47 @@ Primum no solo mide — **cierra la brecha**. Un adversario de IA genera los cas
 modelo local, un modelo frontier produce respuestas "de oro" verificadas por un panel de jueces,
 y el modelo local se **afina con QLoRA** sobre ese corpus. El ciclo se repite.
 
-Resultado (test adversarial honesto de 56 casos, juez Claude Opus 4.8): MedGemma 4B pasó de
-**21.4%** de seguridad (base) a **~53%** (afinado) — más del doble, y sigue mejorando por ciclo.
+## Resultados (test congelado, 56 casos)
+
+El test son **56 casos adversariales congelados aparte de los 98 de entrenamiento**
+(`cases/split.json`); ninguno se usó para afinar. Juez: **Claude Opus 4.8**. Una respuesta por caso.
+
+| Modelo | Seguros | Safety | IC 95 % (Wilson) | Alto riesgo | Efectividad |
+|---|---|---|---|---|---|
+| MedGemma 4B (base) | 12/56 | **21.4 %** | 12.7–33.8 % | 11/53 = 20.8 % | 7.9 % |
+| PRIMUM c3 (afinado, ciclo 3) | 30/56 | **53.6 %** | 40.7–66.0 % | 27/53 = 50.9 % | 29.3 % |
+
+- **Mejora: +32.1 puntos (2.5×), IC 95 % 16.1 a 46.4** (bootstrap por caso).
+- **Pareado por caso:** c3 arregla 21 casos y rompe 3 — **McNemar exacto p = 0.0003**.
+- **Validación:** un juez de otra familia (Gemini 3.1 Pro, *preview*) sobre las mismas respuestas
+  da **17.9 % → 50.0 %** (McNemar p = 0.0005); **κ entre jueces = 0.77** (IC 95 % 0.64–0.88).
+  Detalle: [`docs/juez-segunda-familia.md`](docs/juez-segunda-familia.md).
+
+Advertencias: los dos jueces son LLM (está en curso una calificación humana a ciegas); con 56 casos
+cada caso vale 1.8 puntos y los intervalos son anchos; los ciclos posteriores (c4) no superaron a c3.
+Diecisiete casos de test habían sido de entrenamiento antes de congelar la partición; la historia de
+git sugiere que c3 se entrenó con el filtro anti-fuga (es una inferencia: el log del entrenamiento ya
+no existe), y sin esos 17 casos el resultado se sostiene (n = 39: 17.9 % → 46.2 %, p = 0.0074). De dónde sale cada cifra:
+[`docs/cifras-reconciliadas.md`](docs/cifras-reconciliadas.md).
+
+## Corpus de desarrollo (historia, no comparable)
+
+Antes de congelar el test, los modelos se corrieron sobre los primeros casos del corpus (0001–0050),
+**casi todos usados después para entrenar**, cada uno sobre un subconjunto distinto. Esas cifras se
+quedan sólo como historia; no son comparables con el test de arriba.
+
+| Modelo | Tipo | Safety | n (casos) |
+|---|---|---|---|
+| Claude Opus 4.8 / Sonnet 4.6 | frontera | 100 % | 50 |
+| Gemma 4 (e4b) | local | 94.7 % | 19 |
+| Claude Haiku 4.5 | frontera | 92.3 % | 13 |
+| MedGemma 4B | local (médico) | 56.3 % | 16 |
+
+En ese corpus los modelos de frontera rondaron el 100 % y el afinado *médico* MedGemma se vio menos
+seguro que el Gemma 4 *general*, más nuevo: es una observación de subconjuntos chicos y desiguales,
+no un resultado del test. Un test anterior de 29 casos (37.9 % → 75.9 %) también queda superado: su
+cifra del afinado juntaba dos corridas parciales. La tabla «corpus de desarrollo» del sitio
+(`leaderboard/data/leaderboard.json`, n = 43–50 por modelo) es el mismo tipo de dato.
 
 ## Quickstart
 
@@ -95,6 +134,11 @@ npm run bench -- ollama:medgemma anthropic:claude-opus-4-8
 ```
 
 Los resultados quedan en `results/<modelo>-<fecha>.json` y alimentan el leaderboard.
+
+Las cifras del test en el sitio salen de `leaderboard/data/improvement.json`, generado con
+`node scripts/cifras_sitio.mjs --escribir` (sólo agregados: no se publican veredictos por caso).
+La tabla del corpus de desarrollo sale de `leaderboard/data/leaderboard.json` (`npm run aggregate`
+en `harness/`).
 
 ## Estado
 
