@@ -51,3 +51,6 @@ anclaje-humano/clave/
 # second-family judge: raw caches and re-judged runs stay local (same rule as results/*.json)
 results/juez-segunda-familia/cache-*.jsonl
 results/juez-segunda-familia/rejuzgado-*.json
+
+# Exportaciones de calificaciones: llevan el nombre de quien califica; no van al repo público
+anclaje-humano/calificaciones/*.csv
